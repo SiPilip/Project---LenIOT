@@ -1,11 +1,22 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
+import type { Point, FeatureCollection } from "geojson";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FaTruck, FaWifi, FaWarehouse, FaLocationDot } from "react-icons/fa6";
+import {
+  FaLocationDot,
+  FaCircleNodes,
+  FaFire,
+  FaTruck,
+  FaWifi,
+  FaWarehouse,
+} from "react-icons/fa6";
 import { MapPin, ArrowRight, Edit2, X } from "lucide-react";
 import type { Entity } from "../../types/entity";
 import { TypeBadge, StatusBadge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { cn } from "../../lib/utils";
+
+export type MapViewMode = "pinpoints" | "clusters" | "heatmap";
 
 interface MapViewProps {
   entities: Entity[];
@@ -19,6 +30,7 @@ interface MapViewProps {
 
 const osmRasterStyle: maplibregl.StyleSpecification = {
   version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
     "osm-tiles": {
       type: "raster",
@@ -38,6 +50,13 @@ const osmRasterStyle: maplibregl.StyleSpecification = {
     },
   ],
 };
+
+const SOURCE_ID = "clustered-entities-source";
+const LAYER_HEATMAP = "entities-heatmap-layer";
+const LAYER_HEATMAP_POINTS = "entities-heatmap-points-layer";
+const LAYER_CLUSTER_CIRCLES = "entities-cluster-circles-layer";
+const LAYER_CLUSTER_COUNT = "entities-cluster-count-layer";
+const LAYER_UNCLUSTERED_POINTS = "entities-unclustered-points-layer";
 
 function getCategoryIconSvg(type: string): string {
   if (type === "vehicle") {
@@ -112,6 +131,30 @@ function createPinpointElement(
   return container;
 }
 
+const buildGeoJSON = (
+  entityList: Entity[],
+  selectedId: string | null
+): FeatureCollection<Point> => ({
+  type: "FeatureCollection",
+  features: entityList.map((e) => ({
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [e.longitude, e.latitude],
+    },
+    properties: {
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      status: e.status,
+      description: e.description || "",
+      latitude: e.latitude,
+      longitude: e.longitude,
+      isSelected: e.id === selectedId,
+    },
+  })),
+});
+
 export const MapView: React.FC<MapViewProps> = ({
   entities,
   selectedEntityId,
@@ -124,6 +167,18 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersMapRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<MapViewMode>("pinpoints");
+
+  const entitiesRef = useRef(entities);
+  useEffect(() => {
+    entitiesRef.current = entities;
+  }, [entities]);
+
+  const selectedEntityIdRef = useRef(selectedEntityId);
+  useEffect(() => {
+    selectedEntityIdRef.current = selectedEntityId;
+  }, [selectedEntityId]);
 
   const onSelectEntityRef = useRef(onSelectEntity);
   const onMapClickCoordinatesRef = useRef(onMapClickCoordinates);
@@ -163,6 +218,226 @@ export const MapView: React.FC<MapViewProps> = ({
       "top-right"
     );
 
+    map.on("load", () => {
+      // Add Clustered GeoJSON Source with immediate initial data
+      map.addSource(SOURCE_ID, {
+        type: "geojson",
+        data: buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current),
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      });
+
+      // 1. Heatmap Layer
+      map.addLayer({
+        id: LAYER_HEATMAP,
+        type: "heatmap",
+        source: SOURCE_ID,
+        layout: {
+          visibility: "none",
+        },
+        paint: {
+          "heatmap-weight": 1,
+          "heatmap-intensity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            0,
+            1,
+            14,
+            3,
+          ],
+          "heatmap-color": [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0,
+            "rgba(247, 252, 245, 0)",
+            0.2,
+            "rgba(199, 233, 192, 0.6)",
+            0.4,
+            "rgba(116, 196, 118, 0.8)",
+            0.6,
+            "rgba(35, 139, 69, 0.9)",
+            0.8,
+            "rgba(0, 109, 44, 0.95)",
+            1,
+            "rgba(0, 68, 27, 1)",
+          ],
+          "heatmap-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            0,
+            8,
+            9,
+            24,
+            15,
+            42,
+          ],
+          "heatmap-opacity": 0.85,
+        },
+      });
+
+      // 2. Heatmap Center Focal Points (at higher zooms)
+      map.addLayer({
+        id: LAYER_HEATMAP_POINTS,
+        type: "circle",
+        source: SOURCE_ID,
+        minzoom: 11,
+        layout: {
+          visibility: "none",
+        },
+        paint: {
+          "circle-radius": 4,
+          "circle-color": "#00441b",
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.75,
+        },
+      });
+
+      // 3. Cluster Circles Layer (Green brand gradient sizing)
+      map.addLayer({
+        id: LAYER_CLUSTER_CIRCLES,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        layout: {
+          visibility: "none",
+        },
+        paint: {
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            "#41ab5d", // < 10 points: brand-500
+            10,
+            "#238b45", // 10 - 50 points: brand-600
+            50,
+            "#00441b", // > 50 points: brand-900
+          ],
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            18,
+            10,
+            24,
+            50,
+            30,
+          ],
+          "circle-stroke-width": 3,
+          "circle-stroke-color": [
+            "step",
+            ["get", "point_count"],
+            "#c7e9c0", // brand-200
+            10,
+            "#a1d99b", // brand-300
+            50,
+            "#74c476", // brand-400
+          ],
+          "circle-opacity": 0.95,
+        },
+      });
+
+      // 4. Cluster Numerical Count Labels
+      map.addLayer({
+        id: LAYER_CLUSTER_COUNT,
+        type: "symbol",
+        source: SOURCE_ID,
+        filter: ["has", "point_count"],
+        layout: {
+          visibility: "none",
+          "text-field": "{point_count_abbreviated}",
+          "text-size": 12,
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        },
+        paint: {
+          "text-color": "#ffffff",
+        },
+      });
+
+      // 5. Unclustered Individual Points (in Clusters view mode)
+      map.addLayer({
+        id: LAYER_UNCLUSTERED_POINTS,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        layout: {
+          visibility: "none",
+        },
+        paint: {
+          "circle-color": "#006d2c",
+          "circle-radius": 8,
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": [
+            "match",
+            ["get", "status"],
+            "active",
+            "#41ab5d",
+            "maintenance",
+            "#f59e0b",
+            "#94a3b8",
+          ],
+        },
+      });
+
+      // Cluster Expansion Click
+      map.on(
+        "click",
+        LAYER_CLUSTER_CIRCLES,
+        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          if (!e.features || !e.features.length) return;
+          const clusterId = e.features[0].properties?.cluster_id;
+          if (clusterId == null) return;
+
+          const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
+          source
+            .getClusterExpansionZoom(clusterId)
+            .then((zoom) => {
+              if (zoom == null) return;
+              const geom = e.features![0].geometry as Point;
+              map.easeTo({
+                center: geom.coordinates as [number, number],
+                zoom: zoom + 0.5,
+                duration: 500,
+              });
+            })
+            .catch(() => {});
+        }
+      );
+
+      // Unclustered Point Click (select entity)
+      map.on(
+        "click",
+        LAYER_UNCLUSTERED_POINTS,
+        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          if (isPickingLocationRef.current) return;
+          if (e.features && e.features.length > 0) {
+            const id = e.features[0].properties?.id;
+            if (id) {
+              onSelectEntityRef.current(id);
+            }
+          }
+        }
+      );
+
+      // Cursors on clusters and unclustered points
+      map.on("mouseenter", LAYER_CLUSTER_CIRCLES, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", LAYER_CLUSTER_CIRCLES, () => {
+        map.getCanvas().style.cursor = "";
+      });
+      map.on("mouseenter", LAYER_UNCLUSTERED_POINTS, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", LAYER_UNCLUSTERED_POINTS, () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      setMapLoaded(true);
+    });
+
     // Handle map click for location picking or background deselect
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
@@ -172,8 +447,17 @@ export const MapView: React.FC<MapViewProps> = ({
         return;
       }
 
-      // Background deselect if not clicking a marker
-      onSelectEntityRef.current(null);
+      // Check if clicking clusters or unclustered points before deselecting
+      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+        [e.point.x - 6, e.point.y - 6],
+        [e.point.x + 6, e.point.y + 6],
+      ];
+      const features = map.queryRenderedFeatures(bbox, {
+        layers: [LAYER_CLUSTER_CIRCLES, LAYER_UNCLUSTERED_POINTS],
+      });
+      if (features.length === 0 && !isPickingLocationRef.current) {
+        onSelectEntityRef.current(null);
+      }
     });
 
     mapRef.current = map;
@@ -196,49 +480,98 @@ export const MapView: React.FC<MapViewProps> = ({
     mapRef.current.getCanvas().style.cursor = isPickingLocation ? "crosshair" : "";
   }, [isPickingLocation]);
 
-  // Synchronize pinpoint markers whenever entities or selectedEntityId changes
+  // Synchronize GeoJSON source data whenever entities or selectedEntityId changes
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
-    const currentMarkers = markersMapRef.current;
-    const nextEntityIds = new Set(entities.map((e) => e.id));
+    const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
 
-    // Remove markers that no longer exist
-    for (const [id, marker] of currentMarkers.entries()) {
-      if (!nextEntityIds.has(id)) {
-        marker.remove();
-        currentMarkers.delete(id);
+    source.setData(buildGeoJSON(entities, selectedEntityId));
+  }, [entities, selectedEntityId, mapLoaded]);
+
+  // Manage layer visibility and pinpoint markers based on viewMode
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const setLayerVis = (layerId: string, visible: boolean) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
       }
-    }
+    };
 
-    // Add or update pinpoint markers
-    entities.forEach((entity) => {
-      const isSelected = entity.id === selectedEntityId;
+    if (viewMode === "pinpoints") {
+      setLayerVis(LAYER_CLUSTER_CIRCLES, false);
+      setLayerVis(LAYER_CLUSTER_COUNT, false);
+      setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
+      setLayerVis(LAYER_HEATMAP, false);
+      setLayerVis(LAYER_HEATMAP_POINTS, false);
 
-      // Re-create marker element to guarantee fresh reactive state
-      if (currentMarkers.has(entity.id)) {
-        currentMarkers.get(entity.id)!.remove();
-      }
+      // Show DOM pinpoint markers
+      const currentMarkers = markersMapRef.current;
+      const nextEntityIds = new Set(entities.map((e) => e.id));
 
-      const el = createPinpointElement(entity, isSelected, () => {
-        if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
-          onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
-          return;
+      for (const [id, marker] of currentMarkers.entries()) {
+        if (!nextEntityIds.has(id)) {
+          marker.remove();
+          currentMarkers.delete(id);
         }
-        onSelectEntityRef.current(entity.id);
+      }
+
+      entities.forEach((entity) => {
+        const isSelected = entity.id === selectedEntityId;
+
+        if (currentMarkers.has(entity.id)) {
+          currentMarkers.get(entity.id)!.remove();
+        }
+
+        const el = createPinpointElement(entity, isSelected, () => {
+          if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
+            onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
+            return;
+          }
+          onSelectEntityRef.current(entity.id);
+        });
+
+        const marker = new maplibregl.Marker({
+          element: el,
+          anchor: "bottom",
+        })
+          .setLngLat([entity.longitude, entity.latitude])
+          .addTo(map);
+
+        currentMarkers.set(entity.id, marker);
       });
+    } else if (viewMode === "clusters") {
+      // Enable cluster layers
+      setLayerVis(LAYER_CLUSTER_CIRCLES, true);
+      setLayerVis(LAYER_CLUSTER_COUNT, true);
+      setLayerVis(LAYER_UNCLUSTERED_POINTS, true);
+      setLayerVis(LAYER_HEATMAP, false);
+      setLayerVis(LAYER_HEATMAP_POINTS, false);
 
-      const marker = new maplibregl.Marker({
-        element: el,
-        anchor: "bottom",
-      })
-        .setLngLat([entity.longitude, entity.latitude])
-        .addTo(map);
+      // Remove DOM pinpoint markers in cluster mode
+      for (const marker of markersMapRef.current.values()) {
+        marker.remove();
+      }
+      markersMapRef.current.clear();
+    } else if (viewMode === "heatmap") {
+      // Enable heatmap layers
+      setLayerVis(LAYER_CLUSTER_CIRCLES, false);
+      setLayerVis(LAYER_CLUSTER_COUNT, false);
+      setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
+      setLayerVis(LAYER_HEATMAP, true);
+      setLayerVis(LAYER_HEATMAP_POINTS, true);
 
-      currentMarkers.set(entity.id, marker);
-    });
-  }, [entities, selectedEntityId]);
+      // Remove DOM pinpoint markers in heatmap mode
+      for (const marker of markersMapRef.current.values()) {
+        marker.remove();
+      }
+      markersMapRef.current.clear();
+    }
+  }, [entities, selectedEntityId, mapLoaded, viewMode]);
 
   // Pan / Fly to selected entity
   useEffect(() => {
@@ -263,37 +596,138 @@ export const MapView: React.FC<MapViewProps> = ({
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Brand Geospatial Legend */}
-      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-xs rounded-xl p-2.5 shadow-md border border-brand-200 text-xs hidden sm:flex flex-col gap-1.5 pointer-events-auto max-w-47.5">
-        <div className="flex items-center gap-1.5 font-bold text-[11px] text-brand-900 border-b border-brand-100 pb-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-brand-600 ring-2 ring-brand-200" />
-          <span>Brand Mark Points</span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-zinc-700">
-          <span className="flex items-center gap-1 font-medium">
-            <FaTruck className="w-3 h-3 text-[#006d2c]" /> Vehicle
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <FaWifi className="w-3 h-3 text-[#006d2c]" /> IoT Device
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <FaWarehouse className="w-3 h-3 text-[#006d2c]" /> Facility
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <FaLocationDot className="w-3 h-3 text-[#006d2c]" /> Other
-          </span>
-        </div>
-        <div className="flex items-center justify-between pt-1 border-t border-zinc-100 text-[9px] text-zinc-500 font-medium">
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Maint.
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" /> Inactive
-          </span>
-        </div>
+      {/* Anti-Slop View Mode Selector (Pure vector react-icons, zero emojis) */}
+      <div className="absolute top-4 right-14 z-10 bg-white/95 backdrop-blur-xs border border-brand-200 rounded-xl p-1 shadow-md flex items-center gap-1 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setViewMode("pinpoints")}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer",
+            viewMode === "pinpoints"
+              ? "bg-brand-600 text-white shadow-2xs font-semibold"
+              : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+          )}
+        >
+          <FaLocationDot className="w-3 h-3" />
+          <span>Pinpoints</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("clusters")}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer",
+            viewMode === "clusters"
+              ? "bg-brand-600 text-white shadow-2xs font-semibold"
+              : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+          )}
+        >
+          <FaCircleNodes className="w-3 h-3" />
+          <span>Clusters</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("heatmap")}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer",
+            viewMode === "heatmap"
+              ? "bg-brand-600 text-white shadow-2xs font-semibold"
+              : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+          )}
+        >
+          <FaFire className="w-3 h-3" />
+          <span>Heatmap</span>
+        </button>
+      </div>
+
+      {/* Dynamic Brand Geospatial Legend */}
+      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-xs rounded-xl p-2.5 shadow-md border border-brand-200 text-xs hidden sm:flex flex-col gap-1.5 pointer-events-auto min-w-44">
+        {viewMode === "pinpoints" && (
+          <>
+            <div className="flex items-center gap-1.5 font-bold text-[11px] text-brand-900 border-b border-brand-100 pb-1">
+              <FaLocationDot className="w-3 h-3 text-brand-600" />
+              <span>Brand Pinpoints</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-zinc-700">
+              <span className="flex items-center gap-1 font-medium">
+                <FaTruck className="w-3 h-3 text-brand-700" /> Vehicle
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <FaWifi className="w-3 h-3 text-brand-700" /> IoT Device
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <FaWarehouse className="w-3 h-3 text-brand-700" /> Facility
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <FaLocationDot className="w-3 h-3 text-brand-700" /> Other
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-zinc-100 text-[9px] text-zinc-500 font-medium">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Maint.
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" /> Inactive
+              </span>
+            </div>
+          </>
+        )}
+
+        {viewMode === "clusters" && (
+          <>
+            <div className="flex items-center gap-1.5 font-bold text-[11px] text-brand-900 border-b border-brand-100 pb-1">
+              <FaCircleNodes className="w-3 h-3 text-brand-600" />
+              <span>Spatial Superclusters</span>
+            </div>
+            <div className="space-y-1 text-[10px] text-zinc-700">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand-500 ring-1 ring-brand-200" />
+                  &lt; 10 entities
+                </span>
+                <span className="text-[9px] font-mono text-zinc-400">Small</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand-600 ring-1 ring-brand-300" />
+                  10 - 50 entities
+                </span>
+                <span className="text-[9px] font-mono text-zinc-400">Medium</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand-900 ring-1 ring-brand-400" />
+                  &gt; 50 entities
+                </span>
+                <span className="text-[9px] font-mono text-zinc-400">Dense</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-brand-700 italic border-t border-zinc-100 pt-1">
+              Click any cluster to expand zoom
+            </p>
+          </>
+        )}
+
+        {viewMode === "heatmap" && (
+          <>
+            <div className="flex items-center gap-1.5 font-bold text-[11px] text-brand-900 border-b border-brand-100 pb-1">
+              <FaFire className="w-3 h-3 text-brand-600" />
+              <span>Density Heatmap</span>
+            </div>
+            <div className="space-y-1 text-[10px]">
+              <div className="h-2.5 w-full rounded-full bg-linear-to-r from-brand-200 via-brand-500 to-brand-900 border border-zinc-200" />
+              <div className="flex items-center justify-between text-[9px] text-zinc-500 font-mono">
+                <span>Low Density</span>
+                <span>High Density</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-zinc-500 pt-0.5">
+              Visualizing spatial entity concentration
+            </p>
+          </>
+        )}
       </div>
 
       {/* Crosshair Picking Alert */}

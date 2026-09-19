@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { FaTruck, FaWifi, FaWarehouse, FaLocationDot } from "react-icons/fa6";
 import { cn } from "../../lib/utils";
 import type { EntityStatus, EntityType } from "../../types/entity";
 
@@ -24,11 +25,11 @@ const badgeVariants = cva(
           "border-amber-200 bg-amber-50 text-amber-800",
         // Semantic Entity Type Variants (Light Theme)
         vehicle:
-          "border-sky-200 bg-sky-50 text-sky-800",
+          "border-brand-200 bg-brand-50 text-brand-800",
         iot_device:
-          "border-brand-200 bg-brand-100/70 text-brand-800",
+          "border-brand-300 bg-brand-100/70 text-brand-900",
         facility:
-          "border-emerald-200 bg-emerald-50 text-emerald-800",
+          "border-brand-200 bg-brand-50 text-brand-800",
         other:
           "border-slate-200 bg-slate-50 text-slate-700",
       },
@@ -88,9 +89,17 @@ export function TypeBadge({ type, className }: TypeBadgeProps) {
     other: "Other",
   };
 
+  const icons: Record<EntityType, React.ReactNode> = {
+    vehicle: <FaTruck className="w-2.5 h-2.5 shrink-0 text-brand-700" />,
+    iot_device: <FaWifi className="w-2.5 h-2.5 shrink-0 text-brand-700" />,
+    facility: <FaWarehouse className="w-2.5 h-2.5 shrink-0 text-brand-700" />,
+    other: <FaLocationDot className="w-2.5 h-2.5 shrink-0 text-brand-700" />,
+  };
+
   return (
-    <Badge variant={type} className={cn("font-medium", className)}>
-      {labels[type] || type}
+    <Badge variant={type} className={cn("gap-1 font-medium", className)}>
+      {icons[type]}
+      <span>{labels[type] || type}</span>
     </Badge>
   );
 }

@@ -9,6 +9,7 @@ Legenda: ⬜ belum · 🟨 sebagian · ✅ selesai
 | Mengubah entitas                     | ✅     | Edit form terintegrasi dengan validasi Zod & TanStack Query cache invalidation |
 | Menghapus entitas                    | ✅     | Konfirmasi modal penghapusan dengan umpan balik toast notifikasi |
 | Detail entitas pada peta             | ✅     | Klik marker/lingkaran entitas pada peta membuka infowindow card interaktif di peta + modal detail lengkap dengan atribut dinamis JSON (view toggle Key-Value / Raw JSON) |
+| Klasterisasi & Peta Panas (Heatmap)  | ✅     | Superclustering spasial native WebGL MapLibre (click-to-expand zoom) + Density Heatmap gradasi warna hijau brand + Anti-slop segmented view switcher & dynamic legend berbasis pure react-icons |
 | Validasi di backend                  | ✅     | Menggunakan `go-playground/validator/v10` dengan field-level error mapping ke envelope standar 422, validasi nama minimal 3 karakter, case-insensitive enums |
 | Validasi di frontend                 | ✅     | Schema Zod sinkron 100% dengan contract backend (`entityInputSchema`), form validation via `react-hook-form`, validasi sintaks JSON atribut secara real-time |
 | Desain & Tema                        | ✅     | Pure Light Theme (tanpa dark mode), palet warna ColorBrewer 9-shade green (#F7FCF5 s/d #00441B), tipografi Poppins |
