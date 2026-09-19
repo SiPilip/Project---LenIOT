@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Point, FeatureCollection } from "geojson";
+
+// Ensure MapLibre Web Worker is bundled correctly by Vite for GeoJSON clustering and heatmaps
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   FaLocationDot,
@@ -52,8 +56,8 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
       cluster: true,
-      clusterMaxZoom: 14,
-      clusterRadius: 50,
+      clusterMaxZoom: 15,
+      clusterRadius: 65,
     },
     [RAW_SOURCE_ID]: {
       type: "geojson",
@@ -154,11 +158,11 @@ const baseMapStyle: maplibregl.StyleSpecification = {
         "circle-radius": [
           "step",
           ["get", "point_count"],
-          20,
+          22,
           10,
-          26,
+          28,
           50,
-          32,
+          34,
         ],
         "circle-stroke-width": 4,
         "circle-stroke-color": [
@@ -180,9 +184,9 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       filter: ["has", "point_count"],
       layout: {
         visibility: "none",
-        "text-field": "{point_count_abbreviated}",
+        "text-field": ["to-string", ["get", "point_count"]],
         "text-size": 13,
-        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        "text-font": ["Noto Sans Bold"],
       },
       paint: {
         "text-color": "#ffffff",
@@ -220,7 +224,7 @@ const baseMapStyle: maplibregl.StyleSpecification = {
         "text-size": 11,
         "text-offset": [0, 1.4],
         "text-anchor": "top",
-        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        "text-font": ["Noto Sans Regular"],
         "text-optional": true,
       },
       paint: {
@@ -601,6 +605,12 @@ export const MapView: React.FC<MapViewProps> = ({
         currentMarkers.set(entity.id, marker);
       });
     } else if (viewMode === "clusters") {
+      const geojsonData = buildGeoJSON(entities, selectedEntityId);
+      const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (clusterSource) {
+        clusterSource.setData(geojsonData);
+      }
+
       // Enable cluster layers
       setLayerVis(LAYER_CLUSTER_CIRCLES, true);
       setLayerVis(LAYER_CLUSTER_COUNT, true);
@@ -615,6 +625,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }
       markersMapRef.current.clear();
     } else if (viewMode === "heatmap") {
+      const geojsonData = buildGeoJSON(entities, selectedEntityId);
+      const rawSource = map.getSource(RAW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (rawSource) {
+        rawSource.setData(geojsonData);
+      }
+
       // Enable heatmap layers
       setLayerVis(LAYER_CLUSTER_CIRCLES, false);
       setLayerVis(LAYER_CLUSTER_COUNT, false);
