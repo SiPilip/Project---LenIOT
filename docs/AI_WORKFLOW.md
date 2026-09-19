@@ -66,4 +66,5 @@
 | 2026-09-19 | Scaffolding & Setup | Setup direktori, AGENTS.md, dokumen panduan, check.ps1 | Review dan persetujuan implementation plan |
 | 2026-09-19 | Slice 1: Backend CRUD | Implementasi domain, repository SQLite, validator/v10, service, handler, dan unit tests | Verifikasi error envelope & status code 422 |
 | 2026-09-19 | Slice 2: Frontend & Map | Implementasi MapLibre GL, TanStack Query, form modal, card, dan unit tests | Verifikasi interaksi peta dan form validation |
+| 2026-09-19 | Refactor: Shadcn UI & Mobile | Migrasi komponen ke Shadcn UI (@radix-ui/react-dialog, slot, label, cva), mobile switcher & 44px tap targets, react-hot-toast | Pengujian layout responsif dan review kepatuhan skills |
 | 2026-09-19 | Verifikasi Akhir | Menjalankan .\scripts\check.ps1, merapikan build bundle & dokumentasi | Final review kelengkapan berkas repositori |

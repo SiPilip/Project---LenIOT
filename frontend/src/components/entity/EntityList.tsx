@@ -58,7 +58,7 @@ export const EntityList: React.FC<EntityListProps> = ({
             variant="default"
             size="sm"
             onClick={onAddEntity}
-            className="gap-1.5 min-h-[40px] md:min-h-[36px]"
+            className="gap-1.5 min-h-10 md:min-h-9"
           >
             <Plus className="w-4 h-4" />
             <span>Add Entity</span>

@@ -69,7 +69,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onEdit(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 min-h-[36px] min-w-[36px]"
+              className="h-8 w-8 p-0 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 min-h-9 min-w-9"
               aria-label="Edit entity"
               title="Edit entity"
             >
@@ -79,7 +79,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onDelete(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 min-h-[36px] min-w-[36px]"
+              className="h-8 w-8 p-0 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 min-h-9 min-w-9"
               aria-label="Delete entity"
               title="Delete entity"
             >
