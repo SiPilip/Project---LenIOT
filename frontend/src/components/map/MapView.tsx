@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { Feature, Point, FeatureCollection } from "geojson";
+import type { Point, FeatureCollection } from "geojson";
 import { MapPin, ArrowRight, Edit2, X } from "lucide-react";
 import type { Entity } from "../../types/entity";
 import { TypeBadge, StatusBadge } from "../ui/badge";
@@ -39,178 +39,42 @@ const osmRasterStyle: maplibregl.StyleSpecification = {
 };
 
 const SOURCE_ID = "entities-source";
-const LAYER_SELECTION_GLOW_ID = "entities-selection-glow-layer";
 const LAYER_GROUND_SHADOW_ID = "entities-ground-shadow-layer";
-const LAYER_MARKERS_ID = "entities-markers-layer";
+const LAYER_SELECTION_GLOW_ID = "entities-selection-glow-layer";
+const LAYER_OUTER_PIN_ID = "entities-outer-pin-layer";
+const LAYER_INNER_DISC_ID = "entities-inner-disc-layer";
+const LAYER_GLYPH_ID = "entities-glyph-layer";
 const LAYER_LABELS_ID = "entities-labels-layer";
 
-const ENTITY_TYPES = ["vehicle", "iot_device", "facility", "other"] as const;
-const ENTITY_STATUSES = ["active", "inactive", "maintenance"] as const;
+const INTERACTIVE_LAYERS = [
+  LAYER_OUTER_PIN_ID,
+  LAYER_INNER_DISC_ID,
+  LAYER_GLYPH_ID,
+];
 
-/**
- * Dynamically renders high-craft custom pin markers in the 9-shade brand green palette.
- * Each mark point features:
- * - Brand green teardrop body (#006d2c -> #238b45) with crisp white contrast stroke
- * - Crisp inner disc in brand-50 (#f7fcf5)
- * - Vector equipment glyph (Vehicle, IoT sensor antenna, Facility warehouse, or Target) in #00441b
- * - Status indicator bead (Active = brand-500, Maint = amber, Inactive = slate)
- * - Needle tip anchored exactly at coordinate [lat, lng]
- */
-function registerCustomMarkers(map: maplibregl.Map) {
-  if (typeof document === "undefined") return;
-  const width = 48;
-  const height = 60;
-
-  for (const type of ENTITY_TYPES) {
-    for (const status of ENTITY_STATUSES) {
-      const markerId = `custom-marker-${type}-${status}`;
-      if (map.hasImage(markerId)) continue;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
-
-      ctx.clearRect(0, 0, width, height);
-
-      // 1. Drop shadow behind the pin
-      ctx.save();
-      ctx.shadowColor = "rgba(0, 68, 27, 0.35)";
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetY = 3;
-
-      // Pin Teardrop Shape
-      // Center of bulb: (24, 20), radius: 16
-      // Tip at: (24, 58)
-      ctx.beginPath();
-      ctx.moveTo(24, 58);
-      ctx.bezierCurveTo(9, 38, 7, 26, 7, 20);
-      ctx.arc(24, 20, 16, Math.PI, 0, false);
-      ctx.bezierCurveTo(41, 26, 39, 38, 24, 58);
-      ctx.closePath();
-
-      // Brand gradient fill (#006d2c -> #238b45)
-      const grad = ctx.createLinearGradient(12, 4, 36, 58);
-      grad.addColorStop(0, "#006d2c"); // brand-700
-      grad.addColorStop(1, "#238b45"); // brand-600
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // Crisp white outer stroke for map contrast
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "#ffffff";
-      ctx.stroke();
-      ctx.restore();
-
-      // 2. Inner disc (brand-50 background)
-      ctx.beginPath();
-      ctx.arc(24, 20, 10.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#f7fcf5"; // brand-50
-      ctx.fill();
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = "#c7e9c0"; // brand-200
-      ctx.stroke();
-
-      // 3. Category glyph / icon inside disc
-      ctx.strokeStyle = "#00441b"; // brand-900
-      ctx.fillStyle = "#00441b";
-      ctx.lineWidth = 1.4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      if (type === "vehicle") {
-        // Vehicle / Truck glyph
-        ctx.beginPath();
-        ctx.rect(17.5, 19, 13, 4.5);
-        ctx.fillStyle = "#006d2c";
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(20, 19);
-        ctx.lineTo(22, 16);
-        ctx.lineTo(27, 16);
-        ctx.lineTo(29, 19);
-        ctx.closePath();
-        ctx.fillStyle = "#00441b";
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(20, 23.5, 1.6, 0, Math.PI * 2);
-        ctx.arc(28, 23.5, 1.6, 0, Math.PI * 2);
-        ctx.fillStyle = "#00441b";
-        ctx.fill();
-      } else if (type === "iot_device") {
-        // IoT sensor / Antenna with radiating waves
-        ctx.beginPath();
-        ctx.moveTo(24, 25);
-        ctx.lineTo(24, 18);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(24, 17.5, 1.8, 0, Math.PI * 2);
-        ctx.fillStyle = "#006d2c";
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(24, 17.5, 4.5, -Math.PI * 0.75, -Math.PI * 0.25);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(24, 17.5, 7.5, -Math.PI * 0.75, -Math.PI * 0.25);
-        ctx.stroke();
-      } else if (type === "facility") {
-        // Facility / Building warehouse glyph
-        ctx.beginPath();
-        ctx.moveTo(17, 19);
-        ctx.lineTo(24, 14.5);
-        ctx.lineTo(31, 19);
-        ctx.closePath();
-        ctx.fillStyle = "#00441b";
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.rect(18, 19, 12, 6);
-        ctx.fillStyle = "#006d2c";
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#f7fcf5";
-        ctx.fillRect(22.5, 21.5, 3, 3.5);
-      } else {
-        // Other / Geo target point
-        ctx.beginPath();
-        ctx.arc(24, 20, 5, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(24, 20, 2.2, 0, Math.PI * 2);
-        ctx.fillStyle = "#006d2c";
-        ctx.fill();
-      }
-
-      // 4. Status Indicator Bead (Top right)
-      const statusColor =
-        status === "active"
-          ? "#41ab5d" // brand-500
-          : status === "maintenance"
-          ? "#f59e0b" // amber-500
-          : "#94a3b8"; // slate-400
-
-      ctx.beginPath();
-      ctx.arc(35, 9.5, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = statusColor;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = "#ffffff";
-      ctx.stroke();
-
-      const imageData = ctx.getImageData(0, 0, width, height);
-      map.addImage(markerId, imageData, { pixelRatio: 1 });
-    }
-  }
-}
+const buildGeoJSON = (
+  entityList: Entity[],
+  selectedId: string | null
+): FeatureCollection<Point> => ({
+  type: "FeatureCollection",
+  features: entityList.map((e) => ({
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [e.longitude, e.latitude],
+    },
+    properties: {
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      status: e.status,
+      description: e.description || "",
+      latitude: e.latitude,
+      longitude: e.longitude,
+      isSelected: e.id === selectedId,
+    },
+  })),
+});
 
 export const MapView: React.FC<MapViewProps> = ({
   entities,
@@ -223,6 +87,17 @@ export const MapView: React.FC<MapViewProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  const entitiesRef = useRef(entities);
+  useEffect(() => {
+    entitiesRef.current = entities;
+  }, [entities]);
+
+  const selectedEntityIdRef = useRef(selectedEntityId);
+  useEffect(() => {
+    selectedEntityIdRef.current = selectedEntityId;
+  }, [selectedEntityId]);
 
   const onSelectEntityRef = useRef(onSelectEntity);
   const onMapClickCoordinatesRef = useRef(onMapClickCoordinates);
@@ -250,7 +125,7 @@ export const MapView: React.FC<MapViewProps> = ({
       container: mapContainerRef.current,
       style: osmRasterStyle,
       center: [104.7565, -2.9835], // Center in Indonesia / Palembang
-      zoom: 7,
+      zoom: 12,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -263,68 +138,117 @@ export const MapView: React.FC<MapViewProps> = ({
     );
 
     map.on("load", () => {
-      // Register custom-designed mark points in brand green palette
-      registerCustomMarkers(map);
-
-      // Add GeoJSON Source
+      // Add GeoJSON Source with immediate initial data from refs
       map.addSource(SOURCE_ID, {
         type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
+        data: buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current),
       });
 
-      // 1. Selection Glow Halo (Pulsing aura for selected entity)
-      map.addLayer({
-        id: LAYER_SELECTION_GLOW_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["==", ["get", "id"], ""],
-        paint: {
-          "circle-radius": 24,
-          "circle-color": "#41ab5d",
-          "circle-opacity": 0.35,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#238b45",
-          "circle-stroke-opacity": 0.7,
-        },
-      });
-
-      // 2. Ground Contact Shadow Layer (underneath pin tip)
+      // 1. Ground Contact Shadow Layer
       map.addLayer({
         id: LAYER_GROUND_SHADOW_ID,
         type: "circle",
         source: SOURCE_ID,
         paint: {
-          "circle-radius": 5,
+          "circle-radius": 15,
           "circle-color": "#00441b",
-          "circle-opacity": 0.28,
+          "circle-opacity": 0.16,
+          "circle-blur": 0.4,
         },
       });
 
-      // 3. Custom Designed Brand Green Mark Points (GPU Symbol Layer)
+      // 2. Selection Glow Halo (Pulsing aura for selected entity)
       map.addLayer({
-        id: LAYER_MARKERS_ID,
+        id: LAYER_SELECTION_GLOW_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        filter: ["==", ["get", "id"], selectedEntityIdRef.current || ""],
+        paint: {
+          "circle-radius": 24,
+          "circle-color": "#41ab5d",
+          "circle-opacity": 0.4,
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#238b45",
+          "circle-stroke-opacity": 0.8,
+        },
+      });
+
+      // 3. Custom Designed Outer Mark Pin Shield (Brand Green with status border)
+      map.addLayer({
+        id: LAYER_OUTER_PIN_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        paint: {
+          "circle-radius": [
+            "case",
+            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
+            16,
+            13,
+          ],
+          "circle-color": "#006d2c",
+          "circle-stroke-width": 3,
+          "circle-stroke-color": [
+            "match",
+            ["get", "status"],
+            "active",
+            "#41ab5d",
+            "maintenance",
+            "#f59e0b",
+            "#94a3b8",
+          ],
+        },
+      });
+
+      // 4. Inner Brand Core Disc (Brand-50 #f7fcf5 background)
+      map.addLayer({
+        id: LAYER_INNER_DISC_ID,
+        type: "circle",
+        source: SOURCE_ID,
+        paint: {
+          "circle-radius": [
+            "case",
+            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
+            10,
+            8,
+          ],
+          "circle-color": "#f7fcf5",
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#c7e9c0",
+        },
+      });
+
+      // 5. Category Glyph Symbol
+      map.addLayer({
+        id: LAYER_GLYPH_ID,
         type: "symbol",
         source: SOURCE_ID,
         layout: {
-          "icon-image": [
-            "concat",
-            "custom-marker-",
+          "text-field": [
+            "match",
             ["get", "type"],
-            "-",
-            ["get", "status"],
+            "vehicle",
+            "🚚",
+            "iot_device",
+            "📡",
+            "facility",
+            "🏭",
+            "📍",
           ],
-          "icon-size": 0.78,
-          "icon-anchor": "bottom",
-          "icon-offset": [0, 0],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "text-size": [
+            "case",
+            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
+            13,
+            11,
+          ],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#00441b",
         },
       });
 
-      // 4. Entity Names Labels Layer
+      // 6. Entity Names Labels Layer (Underneath the pin)
       map.addLayer({
         id: LAYER_LABELS_ID,
         type: "symbol",
@@ -332,7 +256,7 @@ export const MapView: React.FC<MapViewProps> = ({
         layout: {
           "text-field": ["get", "name"],
           "text-size": 11,
-          "text-offset": [0, 0.5],
+          "text-offset": [0, 1.8],
           "text-anchor": "top",
           "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
           "text-optional": true,
@@ -343,18 +267,37 @@ export const MapView: React.FC<MapViewProps> = ({
           "text-halo-width": 2.5,
         },
       });
+
+      setMapLoaded(true);
     });
 
-    // Handle clicks on entities
-    map.on("click", LAYER_MARKERS_ID, (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-      if (isPickingLocationRef.current) return;
-      if (e.features && e.features.length > 0) {
-        const feature = e.features[0];
-        const id = feature.properties?.id;
-        if (id) {
-          onSelectEntityRef.current(id);
+    // Handle clicks and cursor on entity mark points
+    INTERACTIVE_LAYERS.forEach((layerId) => {
+      map.on(
+        "click",
+        layerId,
+        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          if (isPickingLocationRef.current) return;
+          if (e.features && e.features.length > 0) {
+            const id = e.features[0].properties?.id;
+            if (id) {
+              onSelectEntityRef.current(id);
+            }
+          }
         }
-      }
+      );
+
+      map.on("mouseenter", layerId, () => {
+        if (!isPickingLocationRef.current) {
+          map.getCanvas().style.cursor = "pointer";
+        }
+      });
+
+      map.on("mouseleave", layerId, () => {
+        if (!isPickingLocationRef.current) {
+          map.getCanvas().style.cursor = "";
+        }
+      });
     });
 
     // Handle map click for location picking or background deselect
@@ -368,25 +311,14 @@ export const MapView: React.FC<MapViewProps> = ({
 
       // If clicked empty canvas (not entity marker), deselect entity
       const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
-        [e.point.x - 5, e.point.y - 5],
-        [e.point.x + 5, e.point.y + 5],
+        [e.point.x - 6, e.point.y - 6],
+        [e.point.x + 6, e.point.y + 6],
       ];
-      const features = map.queryRenderedFeatures(bbox, { layers: [LAYER_MARKERS_ID] });
+      const features = map.queryRenderedFeatures(bbox, {
+        layers: INTERACTIVE_LAYERS,
+      });
       if (features.length === 0 && !isPickingLocationRef.current) {
         onSelectEntityRef.current(null);
-      }
-    });
-
-    // Cursor pointer when hovering over entities
-    map.on("mouseenter", LAYER_MARKERS_ID, () => {
-      if (!isPickingLocationRef.current) {
-        map.getCanvas().style.cursor = "pointer";
-      }
-    });
-
-    map.on("mouseleave", LAYER_MARKERS_ID, () => {
-      if (!isPickingLocationRef.current) {
-        map.getCanvas().style.cursor = "";
       }
     });
 
@@ -404,40 +336,16 @@ export const MapView: React.FC<MapViewProps> = ({
     mapRef.current.getCanvas().style.cursor = isPickingLocation ? "crosshair" : "";
   }, [isPickingLocation]);
 
-  // Update GeoJSON source data whenever entities or selection changes
+  // Update GeoJSON source data and selection dynamic styles whenever entities or selection changes
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
-    const features: Feature<Point>[] = entities.map((e) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [e.longitude, e.latitude],
-      },
-      properties: {
-        id: e.id,
-        name: e.name,
-        type: e.type,
-        status: e.status,
-        description: e.description || "",
-        latitude: e.latitude,
-        longitude: e.longitude,
-        isSelected: e.id === selectedEntityId,
-      },
-    }));
+    source.setData(buildGeoJSON(entities, selectedEntityId));
 
-    const collection: FeatureCollection<Point> = {
-      type: "FeatureCollection",
-      features,
-    };
-
-    source.setData(collection);
-
-    // Dynamically update selection halo & marker size
     if (map.getLayer(LAYER_SELECTION_GLOW_ID)) {
       map.setFilter(LAYER_SELECTION_GLOW_ID, [
         "==",
@@ -446,15 +354,33 @@ export const MapView: React.FC<MapViewProps> = ({
       ]);
     }
 
-    if (map.getLayer(LAYER_MARKERS_ID)) {
-      map.setLayoutProperty(LAYER_MARKERS_ID, "icon-size", [
+    if (map.getLayer(LAYER_OUTER_PIN_ID)) {
+      map.setPaintProperty(LAYER_OUTER_PIN_ID, "circle-radius", [
         "case",
         ["==", ["get", "id"], selectedEntityId || ""],
-        0.95,
-        0.78,
+        16,
+        13,
       ]);
     }
-  }, [entities, selectedEntityId]);
+
+    if (map.getLayer(LAYER_INNER_DISC_ID)) {
+      map.setPaintProperty(LAYER_INNER_DISC_ID, "circle-radius", [
+        "case",
+        ["==", ["get", "id"], selectedEntityId || ""],
+        10,
+        8,
+      ]);
+    }
+
+    if (map.getLayer(LAYER_GLYPH_ID)) {
+      map.setLayoutProperty(LAYER_GLYPH_ID, "text-size", [
+        "case",
+        ["==", ["get", "id"], selectedEntityId || ""],
+        13,
+        11,
+      ]);
+    }
+  }, [entities, selectedEntityId, mapLoaded]);
 
   // Pan / Fly to selected entity
   useEffect(() => {
@@ -463,14 +389,14 @@ export const MapView: React.FC<MapViewProps> = ({
     if (target) {
       mapRef.current.flyTo({
         center: [target.longitude, target.latitude],
-        zoom: Math.max(mapRef.current.getZoom(), 12),
+        zoom: Math.max(mapRef.current.getZoom(), 13),
         essential: true,
-        duration: 1000,
+        duration: 800,
       });
     }
   }, [selectedEntityId, entities]);
 
-  // Format first 2 attributes for quick infowindow display
+  // Format first 3 attributes for quick infowindow display
   const attributeEntries = selectedEntity?.attributes
     ? Object.entries(selectedEntity.attributes).slice(0, 3)
     : [];
@@ -486,18 +412,10 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>Brand Mark Points</span>
         </div>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-zinc-700">
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-700" /> Vehicle
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-700" /> IoT Device
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-700" /> Facility
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-700" /> Other
-          </span>
+          <span className="flex items-center gap-1 font-medium">🚚 Vehicle</span>
+          <span className="flex items-center gap-1 font-medium">📡 IoT Sensor</span>
+          <span className="flex items-center gap-1 font-medium">🏭 Facility</span>
+          <span className="flex items-center gap-1 font-medium">📍 Other</span>
         </div>
         <div className="flex items-center justify-between pt-1 border-t border-zinc-100 text-[9px] text-zinc-500 font-medium">
           <span className="flex items-center gap-1">
