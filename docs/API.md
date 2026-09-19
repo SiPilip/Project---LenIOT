@@ -24,12 +24,13 @@ Lihat model data, envelope respons, dan status code di [AGENTS.md](../AGENTS.md)
 | Field | Type | Rules | Keterangan |
 |---|---|---|---|
 | `id` | string (UUID) | Server-generated | Format UUID v4 |
-| `name` | string | required, trimmed, 1-100 chars | Nama entitas |
-| `type` | string | enum: `vehicle`, `iot_device`, `facility`, `other` | Jenis entitas |
-| `status` | string | enum: `active`, `inactive`, `maintenance` | Status operasional |
+| `name` | string | required, trimmed, 3-100 chars | Nama entitas (minimal 3 karakter) |
+| `type` | string | enum: `vehicle`, `iot_device`, `facility`, `other` | Jenis entitas (case-insensitive) |
+| `status` | string | enum: `active`, `inactive`, `maintenance` | Status operasional (case-insensitive) |
 | `description` | string | optional, max 500 chars | Deskripsi tambahan |
 | `latitude` | number | required, -90..90 | Derajat lintang |
 | `longitude` | number | required, -180..180 | Derajat bujur |
+| `attributes` | object (JSON) | optional, key-value metadata | Atribut dinamis objek (misal: plat nomor, sensor, kapasitas) |
 | `created_at` | string | RFC3339, server-generated | Waktu pembuatan (UTC) |
 | `updated_at` | string | RFC3339, server-generated | Waktu pembaruan (UTC) |
 
@@ -41,6 +42,7 @@ Lihat model data, envelope respons, dan status code di [AGENTS.md](../AGENTS.md)
 
 ```json
 {
+  "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "Fleet Truck 01",
@@ -49,6 +51,11 @@ Lihat model data, envelope respons, dan status code di [AGENTS.md](../AGENTS.md)
     "description": "Logistics delivery vehicle in Palembang area",
     "latitude": -2.976074,
     "longitude": 104.775431,
+    "attributes": {
+      "license_plate": "BG 8421 LN",
+      "fuel_level_pct": 82,
+      "driver_name": "Rahmat Hidayat"
+    },
     "created_at": "2026-09-19T10:00:00Z",
     "updated_at": "2026-09-19T10:00:00Z"
   }
@@ -59,6 +66,7 @@ Untuk list (`GET /api/v1/entities`):
 
 ```json
 {
+  "success": true,
   "data": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -68,6 +76,9 @@ Untuk list (`GET /api/v1/entities`):
       "description": "Logistics delivery vehicle",
       "latitude": -2.976074,
       "longitude": 104.775431,
+      "attributes": {
+        "license_plate": "BG 8421 LN"
+      },
       "created_at": "2026-09-19T10:00:00Z",
       "updated_at": "2026-09-19T10:00:00Z"
     }
@@ -81,6 +92,7 @@ Format standar error:
 
 ```json
 {
+  "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Invalid input",
@@ -91,7 +103,7 @@ Format standar error:
       },
       {
         "field": "name",
-        "message": "is required and must be between 1 and 100 characters"
+        "message": "is required and must be between 3 and 100 characters"
       }
     ]
   }

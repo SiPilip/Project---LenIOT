@@ -68,3 +68,5 @@
 | 2026-09-19 | Slice 2: Frontend & Map | Implementasi MapLibre GL, TanStack Query, form modal, card, dan unit tests | Verifikasi interaksi peta dan form validation |
 | 2026-09-19 | Refactor: Shadcn UI & Mobile | Migrasi komponen ke Shadcn UI (@radix-ui/react-dialog, slot, label, cva), mobile switcher & 44px tap targets, react-hot-toast | Pengujian layout responsif dan review kepatuhan skills |
 | 2026-09-19 | Verifikasi Akhir | Menjalankan .\scripts\check.ps1, merapikan build bundle & dokumentasi | Final review kelengkapan berkas repositori |
+| 2026-09-19 | Full Geospatial Suite + Light Theme + Poppins | Implementasi tema Pure Light dengan palet hijau 9-shade, tipografi font Poppins, interaktif on-map infowindow card, atribut dinamis JSON + preset, SQLite database migration & auto-seed data Indonesia, validasi nama minimal 3 karakter di Go & Zod, standar response envelope { success, data/error }, dan kelulusan penuh .\scripts\check.ps1 | Review palet warna hijau ColorBrewer, verifikasi light mode menyeluruh, dan inspeksi attribute viewer |
+
