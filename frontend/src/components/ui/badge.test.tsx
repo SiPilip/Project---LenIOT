@@ -1,8 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { StatusBadge, TypeBadge } from "./Badge";
+import { Badge, StatusBadge, TypeBadge } from "./badge";
 
-describe("Badge Components", () => {
+describe("Shadcn Badge Components", () => {
+  it("renders base Badge correctly", () => {
+    render(<Badge variant="default">Test Tag</Badge>);
+    expect(screen.getByText("Test Tag")).toBeInTheDocument();
+  });
+
   it("renders StatusBadge with correct label", () => {
     render(<StatusBadge status="active" />);
     expect(screen.getByText("Active")).toBeInTheDocument();

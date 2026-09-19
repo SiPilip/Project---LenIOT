@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { Search, Plus, SlidersHorizontal, MapPinOff } from "lucide-react";
+import { Search, Plus, SlidersHorizontal, MapPinOff, Loader2 } from "lucide-react";
 import type { Entity, EntityStatus, EntityType } from "../../types/entity";
 import { EntityCard } from "./EntityCard";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 interface EntityListProps {
   entities: Entity[];
@@ -41,7 +42,7 @@ export const EntityList: React.FC<EntityListProps> = ({
   }, [entities, search, typeFilter, statusFilter]);
 
   return (
-    <aside className="w-full md:w-96 h-full flex flex-col bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-10 shadow-lg">
+    <aside className="w-full md:w-96 h-full flex flex-col bg-zinc-50/80 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-10 shadow-lg">
       {/* Header */}
       <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="flex items-center justify-between gap-2">
@@ -54,24 +55,25 @@ export const EntityList: React.FC<EntityListProps> = ({
             </p>
           </div>
           <Button
-            variant="primary"
+            variant="default"
             size="sm"
             onClick={onAddEntity}
-            icon={<Plus className="w-4 h-4" />}
+            className="gap-1.5 min-h-[40px] md:min-h-[36px]"
           >
-            Add Entity
+            <Plus className="w-4 h-4" />
+            <span>Add Entity</span>
           </Button>
         </div>
 
         {/* Search bar */}
         <div className="mt-3 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+          <Input
             type="text"
             placeholder="Search entities..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 border border-transparent focus:border-indigo-500 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+            className="pl-9 h-9 text-xs"
           />
         </div>
 
@@ -83,7 +85,8 @@ export const EntityList: React.FC<EntityListProps> = ({
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as EntityType | "all")}
-            className="flex-1 py-1 px-2 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            aria-label="Filter by type"
+            className="flex-1 py-1.5 px-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[36px]"
           >
             <option value="all">All Types</option>
             <option value="vehicle">Vehicle</option>
@@ -95,7 +98,8 @@ export const EntityList: React.FC<EntityListProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as EntityStatus | "all")}
-            className="flex-1 py-1 px-2 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            aria-label="Filter by status"
+            className="flex-1 py-1.5 px-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[36px]"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -109,7 +113,7 @@ export const EntityList: React.FC<EntityListProps> = ({
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-48 text-zinc-400 gap-2">
-            <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
             <p className="text-xs">Loading entities...</p>
           </div>
         ) : filteredEntities.length === 0 ? (
@@ -130,10 +134,10 @@ export const EntityList: React.FC<EntityListProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onAddEntity}
-                className="mt-4"
-                icon={<Plus className="w-3.5 h-3.5" />}
+                className="mt-4 gap-1.5 min-h-[44px]"
               >
-                Add First Entity
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add First Entity</span>
               </Button>
             )}
           </div>
