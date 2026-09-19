@@ -13,4 +13,5 @@ type EntityRepository interface {
 	Update(ctx context.Context, entity *domain.Entity) error
 	Delete(ctx context.Context, id string) error
 	SeedInitialDataIfEmpty(ctx context.Context) error
+	ResetAndSeed(ctx context.Context) error
 }

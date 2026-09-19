@@ -380,8 +380,8 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: baseMapStyle,
-      center: [104.7565, -2.9835], // Center in Palembang
-      zoom: 12,
+      center: [110.0, -7.2], // Center across Java island
+      zoom: 7.2,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");

@@ -24,4 +24,4 @@ Semua requirement inti berhasil diselesaikan secara penuh (100%).
 Catatan operasional:
 - Render entitas pada peta secara sengaja menggunakan GeoJSON source + vector circle layers (bukan DOM HTML marker) untuk memastikan performa tetap mulus tanpa lag saat jumlah entitas bertambah.
 - Database menggunakan pure-Go SQLite (`modernc.org/sqlite`) sehingga penguji di sistem Windows tidak memerlukan kompilator C (gcc) atau setup server database eksternal.
-- Auto-seed data awal langsung aktif saat server pertama kali dijalankan (memuat data armada kendaraan, sensor perairan Sungai Musi, terminal distribusi, stasiun cuaca pintar, dan unit tanggap darurat dengan atribut dinamis).
+- Auto-seed data awal langsung aktif saat server pertama kali dijalankan (memuat 46 entitas realistis yang tersebar di seluruh Pulau Jawa: Jabodetabek, Banten, Jawa Barat, Jawa Tengah, D.I. Yogyakarta, dan Jawa Timur dengan atribut dinamis lengkap). Perintah `go run ./cmd/seed` dapat dijalankan kapan saja untuk melakukan seeding/reset data.
