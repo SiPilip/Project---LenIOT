@@ -35,6 +35,7 @@ interface MapViewProps {
 const CLUSTER_SOURCE_ID = "clustered-entities-source";
 const RAW_SOURCE_ID = "raw-entities-source";
 const LAYER_HEATMAP = "entities-heatmap-layer";
+const LAYER_HEATMAP_HALO = "entities-heatmap-halo-layer";
 const LAYER_HEATMAP_POINTS = "entities-heatmap-points-layer";
 const LAYER_CLUSTER_PULSE = "entities-cluster-pulse-layer";
 const LAYER_CLUSTER_OUTER_RING = "entities-cluster-outer-ring-layer";
@@ -81,17 +82,19 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       source: RAW_SOURCE_ID,
       layout: { visibility: "none" },
       paint: {
-        "heatmap-weight": 1,
+        "heatmap-weight": 1.2,
         "heatmap-intensity": [
           "interpolate",
           ["linear"],
           ["zoom"],
           0,
-          1.2,
-          9,
-          2.5,
-          14,
-          4.5,
+          1.0,
+          8,
+          1.8,
+          12,
+          2.6,
+          15,
+          3.5,
         ],
         "heatmap-color": [
           "interpolate",
@@ -99,46 +102,63 @@ const baseMapStyle: maplibregl.StyleSpecification = {
           ["heatmap-density"],
           0,
           "rgba(247, 252, 245, 0)",
-          0.05,
-          "rgba(199, 233, 192, 0.75)",
+          0.08,
+          "rgba(199, 233, 192, 0.45)", // brand-200 soft mint spread
           0.2,
-          "rgba(161, 217, 155, 0.85)",
-          0.4,
-          "rgba(116, 196, 118, 0.9)",
-          0.6,
-          "rgba(65, 171, 93, 0.95)",
-          0.8,
-          "rgba(35, 139, 69, 1)",
+          "rgba(161, 217, 155, 0.65)", // brand-300 fresh green
+          0.38,
+          "rgba(116, 196, 118, 0.8)", // brand-400 vivid green
+          0.58,
+          "rgba(65, 171, 93, 0.9)", // brand-500 rich emerald
+          0.78,
+          "rgba(35, 139, 69, 0.95)", // brand-600 deep forest
           1,
-          "rgba(0, 68, 27, 1)",
+          "rgba(0, 68, 27, 0.98)", // brand-900 bold rich green
         ],
         "heatmap-radius": [
           "interpolate",
           ["linear"],
           ["zoom"],
           0,
-          20,
-          8,
-          35,
-          12,
-          55,
+          22,
+          6,
+          38,
+          10,
+          65,
+          13,
+          95,
           16,
-          80,
+          135,
         ],
-        "heatmap-opacity": 0.9,
+        "heatmap-opacity": 0.85,
       },
     },
+    // Heatmap Outer Delicate Beacon Halo
+    {
+      id: LAYER_HEATMAP_HALO,
+      type: "circle",
+      source: RAW_SOURCE_ID,
+      layout: { visibility: "none" },
+      paint: {
+        "circle-radius": 9,
+        "circle-color": "rgba(255, 255, 255, 0.7)",
+        "circle-stroke-width": 1.2,
+        "circle-stroke-color": "rgba(0, 109, 44, 0.35)",
+        "circle-opacity": 0.85,
+      },
+    },
+    // Heatmap Core Jewel Dot
     {
       id: LAYER_HEATMAP_POINTS,
       type: "circle",
       source: RAW_SOURCE_ID,
       layout: { visibility: "none" },
       paint: {
-        "circle-radius": 5,
-        "circle-color": "#00441b",
-        "circle-stroke-width": 2,
+        "circle-radius": 4,
+        "circle-color": "#006d2c",
+        "circle-stroke-width": 1.5,
         "circle-stroke-color": "#ffffff",
-        "circle-opacity": 0.85,
+        "circle-opacity": 0.95,
       },
     },
     // 1. Cluster Outer Translucent Radar Pulse Halo
@@ -594,19 +614,22 @@ export const MapView: React.FC<MapViewProps> = ({
     );
 
     // Heatmap Point Click (select entity in heatmap mode)
-    map.on(
-      "click",
-      LAYER_HEATMAP_POINTS,
-      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-        if (isPickingLocationRef.current) return;
-        if (e.features && e.features.length > 0) {
-          const id = e.features[0].properties?.id;
-          if (id) {
-            onSelectEntityRef.current(id);
+    const heatmapInteractiveLayers = [LAYER_HEATMAP_POINTS, LAYER_HEATMAP_HALO];
+    heatmapInteractiveLayers.forEach((layerId) => {
+      map.on(
+        "click",
+        layerId,
+        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          if (isPickingLocationRef.current) return;
+          if (e.features && e.features.length > 0) {
+            const id = e.features[0].properties?.id;
+            if (id) {
+              onSelectEntityRef.current(id);
+            }
           }
         }
-      }
-    );
+      );
+    });
 
     // Cursors on interactive layers
     const interactiveLayers = [
@@ -615,6 +638,7 @@ export const MapView: React.FC<MapViewProps> = ({
       LAYER_CLUSTER_PULSE,
       LAYER_UNCLUSTERED_PINS,
       LAYER_HEATMAP_POINTS,
+      LAYER_HEATMAP_HALO,
     ];
     interactiveLayers.forEach((layerId) => {
       map.on("mouseenter", layerId, () => {
@@ -707,6 +731,7 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, false);
       setLayerVis(LAYER_UNCLUSTERED_PINS, false);
       setLayerVis(LAYER_HEATMAP, false);
+      setLayerVis(LAYER_HEATMAP_HALO, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
       // Show DOM pinpoint markers
@@ -759,6 +784,7 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, true);
       setLayerVis(LAYER_UNCLUSTERED_PINS, true);
       setLayerVis(LAYER_HEATMAP, false);
+      setLayerVis(LAYER_HEATMAP_HALO, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
       // Remove DOM pinpoint markers in cluster mode
@@ -781,7 +807,8 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, false);
       setLayerVis(LAYER_UNCLUSTERED_PINS, false);
       setLayerVis(LAYER_HEATMAP, true);
-      setLayerVis(LAYER_HEATMAP_POINTS, true);
+      setLayerVis(LAYER_HEATMAP_HALO, false);
+      setLayerVis(LAYER_HEATMAP_POINTS, false);
 
       // Remove DOM pinpoint markers in heatmap mode
       for (const marker of markersMapRef.current.values()) {
