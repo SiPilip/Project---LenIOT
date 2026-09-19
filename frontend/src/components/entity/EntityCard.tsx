@@ -26,57 +26,57 @@ export const EntityCard = ({
     <Card
       onClick={() => onSelect(entity.id)}
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md active:scale-[0.99] text-left border bg-white",
+        "cursor-pointer transition-all hover:shadow-xs active:scale-[0.99] text-left border rounded-xl bg-white",
         isSelected
-          ? "border-brand-500 bg-brand-50/80 ring-2 ring-brand-500/25 shadow-sm"
-          : "border-brand-100 hover:border-brand-300"
+          ? "border-brand-500 bg-brand-50/70 ring-1 ring-brand-500 shadow-xs"
+          : "border-brand-100/90 hover:border-brand-300"
       )}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-zinc-900 text-sm truncate">
+            <h4 className="font-semibold text-zinc-900 text-xs sm:text-sm truncate">
               {entity.name}
             </h4>
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-1 mt-1 flex-wrap">
               <TypeBadge type={entity.type} />
               <StatusBadge status={entity.status} />
               {attrCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-brand-100/70 text-brand-700 border border-brand-200">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-mono font-medium bg-brand-100/60 text-brand-700 border border-brand-200/80">
                   <Tag className="w-2.5 h-2.5" />
-                  {attrCount} attrs
+                  {attrCount}
                 </span>
               )}
             </div>
           </div>
           <ChevronRight
             className={cn(
-              "w-4 h-4 transition-transform text-zinc-400 shrink-0",
+              "w-4 h-4 transition-transform text-zinc-400 shrink-0 mt-0.5",
               isSelected && "rotate-90 text-brand-700"
             )}
           />
         </div>
 
         {entity.description && (
-          <p className="mt-2.5 text-xs text-zinc-600 line-clamp-2 leading-relaxed">
+          <p className="mt-2 text-xs text-zinc-600 line-clamp-2 leading-relaxed">
             {entity.description}
           </p>
         )}
 
-        <div className="mt-3 pt-3 border-t border-brand-100 flex items-center justify-between text-xs text-zinc-500">
+        <div className="mt-2.5 pt-2 border-t border-brand-100/70 flex items-center justify-between text-xs text-zinc-500">
           <div className="flex items-center gap-1 font-mono text-[11px] text-zinc-600">
-            <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+            <MapPin className="w-3 h-3 text-brand-600 shrink-0" />
             <span>
               {entity.latitude.toFixed(4)}, {entity.longitude.toFixed(4)}
             </span>
           </div>
 
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onEdit(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-brand-700 hover:bg-brand-100 min-h-9 min-w-9"
+              className="h-7 w-7 p-0 text-zinc-500 hover:text-brand-700 hover:bg-brand-50 rounded-md"
               aria-label="Edit entity"
               title="Edit entity"
             >
@@ -86,7 +86,7 @@ export const EntityCard = ({
               variant="ghost"
               size="sm"
               onClick={() => onDelete(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-red-600 hover:bg-red-50 min-h-9 min-w-9"
+              className="h-7 w-7 p-0 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-md"
               aria-label="Delete entity"
               title="Delete entity"
             >

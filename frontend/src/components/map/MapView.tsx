@@ -332,14 +332,14 @@ export const MapView: React.FC<MapViewProps> = ({
 
       {/* Interactive Infowindow Card on Map */}
       {selectedEntity && !isPickingLocation && (
-        <div className="absolute bottom-6 left-4 right-4 sm:right-auto sm:w-96 z-20 bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-xl border border-brand-200 text-left transition-all animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="absolute bottom-6 left-4 right-4 sm:right-auto sm:w-92 z-20 bg-white/98 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-brand-200 text-left transition-all animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-1">
               <div className="flex items-center gap-1.5 flex-wrap mb-1">
                 <TypeBadge type={selectedEntity.type} />
                 <StatusBadge status={selectedEntity.status} />
               </div>
-              <h4 className="font-semibold text-zinc-900 truncate text-base">
+              <h4 className="font-bold text-zinc-900 truncate text-sm sm:text-base leading-tight">
                 {selectedEntity.name}
               </h4>
             </div>
@@ -348,12 +348,12 @@ export const MapView: React.FC<MapViewProps> = ({
               className="text-zinc-400 hover:text-zinc-700 p-1 rounded-md transition-colors cursor-pointer"
               title="Close Infowindow"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono mt-2">
-            <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs text-brand-800 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded-md font-mono font-medium mt-2 w-fit">
+            <MapPin className="w-3 h-3 text-brand-600 shrink-0" />
             <span>
               {selectedEntity.latitude.toFixed(5)}, {selectedEntity.longitude.toFixed(5)}
             </span>
@@ -367,37 +367,37 @@ export const MapView: React.FC<MapViewProps> = ({
 
           {/* Dynamic Attributes Preview */}
           {attributeEntries.length > 0 && (
-            <div className="mt-3 pt-2.5 border-t border-brand-100 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 pt-2 border-t border-brand-100 flex flex-wrap gap-1">
               {attributeEntries.map(([key, value]) => (
                 <div
                   key={key}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brand-50 border border-brand-100 text-[11px] text-brand-700"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand-50 border border-brand-100 text-[10px] text-brand-700"
                 >
-                  <span className="font-medium">{key}:</span>
+                  <span className="font-medium font-mono">{key}:</span>
                   <span className="font-mono">{String(value)}</span>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="mt-3.5 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+          <div className="mt-3 pt-2.5 border-t border-zinc-100 flex items-center justify-between gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onOpenEdit && onOpenEdit(selectedEntity)}
-              className="text-xs h-8 gap-1 border-brand-200 text-brand-700 hover:bg-brand-50"
+              className="text-xs h-7.5 px-2.5 gap-1 border-brand-200 text-brand-700 hover:bg-brand-50 rounded-md"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              <Edit2 className="w-3 h-3" />
               <span>Edit</span>
             </Button>
             <Button
               variant="default"
               size="sm"
               onClick={() => onOpenDetail && onOpenDetail(selectedEntity)}
-              className="text-xs h-8 gap-1.5 bg-brand-600 hover:bg-brand-700 text-white"
+              className="text-xs h-7.5 px-3 gap-1 bg-brand-600 hover:bg-brand-700 text-white shadow-xs font-medium rounded-md"
             >
               <span>Full Details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3 h-3" />
             </Button>
           </div>
         </div>

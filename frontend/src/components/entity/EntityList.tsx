@@ -42,15 +42,15 @@ export const EntityList = ({
   }, [entities, search, typeFilter, statusFilter]);
 
   return (
-    <aside className="w-full md:w-96 h-full flex flex-col bg-brand-50/50 border-r border-brand-100 z-10 shadow-lg">
+    <aside className="w-full md:w-96 h-full flex flex-col bg-brand-50/40 border-r border-brand-100 z-10 shadow-sm">
       {/* Header */}
-      <div className="p-4 border-b border-brand-100 bg-white">
+      <div className="p-3.5 border-b border-brand-100 bg-white">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-brand-900">
+            <h1 className="text-base font-bold tracking-tight text-brand-900 leading-none">
               Geo Entity Manager
             </h1>
-            <p className="text-xs text-zinc-500">
+            <p className="text-[11px] text-zinc-500 mt-1">
               {entities.length} {entities.length === 1 ? "entity" : "entities"} tracked
             </p>
           </div>
@@ -58,35 +58,35 @@ export const EntityList = ({
             variant="default"
             size="sm"
             onClick={onAddEntity}
-            className="gap-1.5 min-h-10 md:min-h-9 bg-brand-600 hover:bg-brand-700 text-white"
+            className="gap-1 h-8 px-3 text-xs bg-brand-600 hover:bg-brand-700 text-white shadow-xs font-medium"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add Entity</span>
           </Button>
         </div>
 
         {/* Search bar */}
-        <div className="mt-3 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+        <div className="mt-2.5 relative">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           <Input
             type="text"
-            placeholder="Search entities by name or description..."
+            placeholder="Search by name or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-xs border-zinc-300 focus-visible:ring-brand-600 focus-visible:border-brand-600"
+            className="pl-8 h-8 text-xs border-zinc-200 rounded-lg focus-visible:ring-brand-600 focus-visible:border-brand-600"
           />
         </div>
 
         {/* Filters */}
-        <div className="mt-2.5 flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1 text-zinc-400">
+        <div className="mt-2 flex items-center gap-1.5 text-xs">
+          <div className="flex items-center text-zinc-400 pl-0.5">
             <SlidersHorizontal className="w-3.5 h-3.5" />
           </div>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as EntityType | "all")}
             aria-label="Filter by type"
-            className="flex-1 py-1.5 px-2.5 bg-brand-50/60 rounded-md border border-brand-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-600 min-h-9"
+            className="flex-1 h-8 px-2 bg-brand-50/50 rounded-lg border border-brand-200/80 text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-brand-600"
           >
             <option value="all">All Types</option>
             <option value="vehicle">Vehicle</option>
@@ -99,7 +99,7 @@ export const EntityList = ({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as EntityStatus | "all")}
             aria-label="Filter by status"
-            className="flex-1 py-1.5 px-2.5 bg-brand-50/60 rounded-md border border-brand-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-600 min-h-9"
+            className="flex-1 h-8 px-2 bg-brand-50/50 rounded-lg border border-brand-200/80 text-zinc-800 text-xs focus:outline-none focus:ring-1 focus:ring-brand-600"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -110,7 +110,7 @@ export const EntityList = ({
       </div>
 
       {/* Entity list / scroll area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-48 text-zinc-400 gap-2">
             <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />

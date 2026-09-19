@@ -29,42 +29,44 @@ export const DeleteConfirmModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md text-left">
-        <DialogHeader>
-          <div className="flex items-center gap-2 text-red-600">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
-            <DialogTitle>Delete Entity</DialogTitle>
+      <DialogContent className="sm:max-w-md w-full bg-white border border-brand-200 shadow-2xl p-4 sm:p-5 rounded-2xl gap-3">
+        <DialogHeader className="pr-6 space-y-0.5">
+          <div className="flex items-center gap-1.5 text-red-600">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <DialogTitle className="text-base font-bold text-zinc-900">Delete Entity</DialogTitle>
           </div>
-          <DialogDescription>
-            This action is permanent and cannot be undone.
+          <DialogDescription className="text-xs text-zinc-500">
+            This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs leading-relaxed my-2">
-          Are you sure you want to permanently delete{" "}
+        <div className="p-2.5 bg-red-50/80 border border-red-200/80 rounded-lg text-red-800 text-xs leading-relaxed my-1">
+          Are you sure you want to delete{" "}
           <strong className="font-semibold text-red-950">
             "{entity.name}"
           </strong>{" "}
           from the map and database?
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-zinc-100">
+        <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-2 border-t border-zinc-100">
           <Button
             variant="outline"
+            size="sm"
             onClick={onClose}
             disabled={isLoading}
-            className="min-h-11 sm:min-h-9 border-zinc-300 text-zinc-700"
+            className="h-8.5 px-3 text-xs border-zinc-200 text-zinc-700 hover:bg-zinc-50"
           >
             Cancel
           </Button>
           <Button
             variant="destructive"
+            size="sm"
             onClick={onConfirm}
             disabled={isLoading}
-            className="min-h-11 sm:min-h-9"
+            className="h-8.5 px-3.5 text-xs bg-red-600 hover:bg-red-700 text-white font-medium"
           >
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
-            Confirm Delete
+            {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+            Delete
           </Button>
         </DialogFooter>
       </DialogContent>
