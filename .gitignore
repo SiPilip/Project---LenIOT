@@ -1,0 +1,27 @@
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# backend
+backend/bin/
+backend/data/
+*.exe
+*.db
+*.db-shm
+*.db-wal
+*.test
+*.out
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/settings.local.json
