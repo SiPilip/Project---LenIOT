@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { Point, FeatureCollection } from "geojson";
+import { renderToStaticMarkup } from "react-dom/server";
+import { FaTruck, FaWifi, FaWarehouse, FaLocationDot } from "react-icons/fa6";
 import { MapPin, ArrowRight, Edit2, X } from "lucide-react";
 import type { Entity } from "../../types/entity";
 import { TypeBadge, StatusBadge } from "../ui/badge";
@@ -38,43 +39,78 @@ const osmRasterStyle: maplibregl.StyleSpecification = {
   ],
 };
 
-const SOURCE_ID = "entities-source";
-const LAYER_GROUND_SHADOW_ID = "entities-ground-shadow-layer";
-const LAYER_SELECTION_GLOW_ID = "entities-selection-glow-layer";
-const LAYER_OUTER_PIN_ID = "entities-outer-pin-layer";
-const LAYER_INNER_DISC_ID = "entities-inner-disc-layer";
-const LAYER_GLYPH_ID = "entities-glyph-layer";
-const LAYER_LABELS_ID = "entities-labels-layer";
+function getCategoryIconSvg(type: string): string {
+  if (type === "vehicle") {
+    return renderToStaticMarkup(<FaTruck className="w-3.5 h-3.5 text-[#00441b]" />);
+  }
+  if (type === "iot_device") {
+    return renderToStaticMarkup(<FaWifi className="w-3.5 h-3.5 text-[#00441b]" />);
+  }
+  if (type === "facility") {
+    return renderToStaticMarkup(<FaWarehouse className="w-3.5 h-3.5 text-[#00441b]" />);
+  }
+  return renderToStaticMarkup(<FaLocationDot className="w-3.5 h-3.5 text-[#00441b]" />);
+}
 
-const INTERACTIVE_LAYERS = [
-  LAYER_OUTER_PIN_ID,
-  LAYER_INNER_DISC_ID,
-  LAYER_GLYPH_ID,
-];
+function getStatusBadgeClass(status: string): string {
+  if (status === "active") return "bg-emerald-500";
+  if (status === "maintenance") return "bg-amber-500";
+  return "bg-slate-400";
+}
 
-const buildGeoJSON = (
-  entityList: Entity[],
-  selectedId: string | null
-): FeatureCollection<Point> => ({
-  type: "FeatureCollection",
-  features: entityList.map((e) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [e.longitude, e.latitude],
-    },
-    properties: {
-      id: e.id,
-      name: e.name,
-      type: e.type,
-      status: e.status,
-      description: e.description || "",
-      latitude: e.latitude,
-      longitude: e.longitude,
-      isSelected: e.id === selectedId,
-    },
-  })),
-});
+function createPinpointElement(
+  entity: Entity,
+  isSelected: boolean,
+  onClick: () => void
+): HTMLDivElement {
+  const container = document.createElement("div");
+  container.className = "flex flex-col items-center cursor-pointer group select-none";
+  container.style.transform = isSelected ? "scale(1.15)" : "scale(1)";
+  container.style.transition = "transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)";
+  container.style.zIndex = isSelected ? "40" : "10";
+
+  const iconSvg = getCategoryIconSvg(entity.type);
+  const statusBg = getStatusBadgeClass(entity.status);
+
+  container.innerHTML = `
+    <div class="relative flex flex-col items-center">
+      ${
+        isSelected
+          ? `<div class="absolute -inset-2 rounded-full bg-[#41ab5d] opacity-50 animate-ping pointer-events-none"></div>`
+          : ""
+      }
+      
+      <!-- Pin Teardrop Head -->
+      <div class="relative w-9 h-9 rounded-full bg-gradient-to-br from-[#006d2c] to-[#238b45] p-0.5 shadow-md shadow-[#00441b]/35 border-2 border-white flex items-center justify-center group-hover:scale-105 transition-transform">
+        <!-- Inner Core Disc -->
+        <div class="w-full h-full rounded-full bg-[#f7fcf5] border border-[#c7e9c0] flex items-center justify-center shadow-inner">
+          ${iconSvg}
+        </div>
+
+        <!-- Status Dot Bead on top-right -->
+        <span class="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full ${statusBg} border-2 border-white shadow-xs"></span>
+      </div>
+
+      <!-- Pointer Needle Tip -->
+      <div class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[7px] border-t-[#238b45] -mt-0.5"></div>
+
+      <!-- Ground Contact Shadow -->
+      <div class="w-3.5 h-1 bg-[#00441b]/35 rounded-full blur-[0.5px] mt-0.5"></div>
+    </div>
+
+    <!-- Name Label Badge underneath -->
+    <div class="mt-1 px-2 py-0.5 rounded-md bg-white/95 text-[#00441b] text-[10px] font-semibold tracking-tight shadow-sm border border-[#c7e9c0] max-w-[130px] truncate leading-tight group-hover:border-[#238b45] group-hover:shadow-md transition-all">
+      ${entity.name}
+    </div>
+  `;
+
+  container.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+
+  return container;
+}
 
 export const MapView: React.FC<MapViewProps> = ({
   entities,
@@ -87,17 +123,7 @@ export const MapView: React.FC<MapViewProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  const entitiesRef = useRef(entities);
-  useEffect(() => {
-    entitiesRef.current = entities;
-  }, [entities]);
-
-  const selectedEntityIdRef = useRef(selectedEntityId);
-  useEffect(() => {
-    selectedEntityIdRef.current = selectedEntityId;
-  }, [selectedEntityId]);
+  const markersMapRef = useRef<Map<string, maplibregl.Marker>>(new Map());
 
   const onSelectEntityRef = useRef(onSelectEntity);
   const onMapClickCoordinatesRef = useRef(onMapClickCoordinates);
@@ -124,7 +150,7 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: osmRasterStyle,
-      center: [104.7565, -2.9835], // Center in Indonesia / Palembang
+      center: [104.7565, -2.9835], // Center in Palembang
       zoom: 12,
     });
 
@@ -137,169 +163,6 @@ export const MapView: React.FC<MapViewProps> = ({
       "top-right"
     );
 
-    map.on("load", () => {
-      // Add GeoJSON Source with immediate initial data from refs
-      map.addSource(SOURCE_ID, {
-        type: "geojson",
-        data: buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current),
-      });
-
-      // 1. Ground Contact Shadow Layer
-      map.addLayer({
-        id: LAYER_GROUND_SHADOW_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        paint: {
-          "circle-radius": 15,
-          "circle-color": "#00441b",
-          "circle-opacity": 0.16,
-          "circle-blur": 0.4,
-        },
-      });
-
-      // 2. Selection Glow Halo (Pulsing aura for selected entity)
-      map.addLayer({
-        id: LAYER_SELECTION_GLOW_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["==", ["get", "id"], selectedEntityIdRef.current || ""],
-        paint: {
-          "circle-radius": 24,
-          "circle-color": "#41ab5d",
-          "circle-opacity": 0.4,
-          "circle-stroke-width": 3,
-          "circle-stroke-color": "#238b45",
-          "circle-stroke-opacity": 0.8,
-        },
-      });
-
-      // 3. Custom Designed Outer Mark Pin Shield (Brand Green with status border)
-      map.addLayer({
-        id: LAYER_OUTER_PIN_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        paint: {
-          "circle-radius": [
-            "case",
-            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
-            16,
-            13,
-          ],
-          "circle-color": "#006d2c",
-          "circle-stroke-width": 3,
-          "circle-stroke-color": [
-            "match",
-            ["get", "status"],
-            "active",
-            "#41ab5d",
-            "maintenance",
-            "#f59e0b",
-            "#94a3b8",
-          ],
-        },
-      });
-
-      // 4. Inner Brand Core Disc (Brand-50 #f7fcf5 background)
-      map.addLayer({
-        id: LAYER_INNER_DISC_ID,
-        type: "circle",
-        source: SOURCE_ID,
-        paint: {
-          "circle-radius": [
-            "case",
-            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
-            10,
-            8,
-          ],
-          "circle-color": "#f7fcf5",
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#c7e9c0",
-        },
-      });
-
-      // 5. Category Glyph Symbol
-      map.addLayer({
-        id: LAYER_GLYPH_ID,
-        type: "symbol",
-        source: SOURCE_ID,
-        layout: {
-          "text-field": [
-            "match",
-            ["get", "type"],
-            "vehicle",
-            "🚚",
-            "iot_device",
-            "📡",
-            "facility",
-            "🏭",
-            "📍",
-          ],
-          "text-size": [
-            "case",
-            ["==", ["get", "id"], selectedEntityIdRef.current || ""],
-            13,
-            11,
-          ],
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-        },
-        paint: {
-          "text-color": "#00441b",
-        },
-      });
-
-      // 6. Entity Names Labels Layer (Underneath the pin)
-      map.addLayer({
-        id: LAYER_LABELS_ID,
-        type: "symbol",
-        source: SOURCE_ID,
-        layout: {
-          "text-field": ["get", "name"],
-          "text-size": 11,
-          "text-offset": [0, 1.8],
-          "text-anchor": "top",
-          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-          "text-optional": true,
-        },
-        paint: {
-          "text-color": "#00441b",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 2.5,
-        },
-      });
-
-      setMapLoaded(true);
-    });
-
-    // Handle clicks and cursor on entity mark points
-    INTERACTIVE_LAYERS.forEach((layerId) => {
-      map.on(
-        "click",
-        layerId,
-        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-          if (isPickingLocationRef.current) return;
-          if (e.features && e.features.length > 0) {
-            const id = e.features[0].properties?.id;
-            if (id) {
-              onSelectEntityRef.current(id);
-            }
-          }
-        }
-      );
-
-      map.on("mouseenter", layerId, () => {
-        if (!isPickingLocationRef.current) {
-          map.getCanvas().style.cursor = "pointer";
-        }
-      });
-
-      map.on("mouseleave", layerId, () => {
-        if (!isPickingLocationRef.current) {
-          map.getCanvas().style.cursor = "";
-        }
-      });
-    });
-
     // Handle map click for location picking or background deselect
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
@@ -309,22 +172,19 @@ export const MapView: React.FC<MapViewProps> = ({
         return;
       }
 
-      // If clicked empty canvas (not entity marker), deselect entity
-      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
-        [e.point.x - 6, e.point.y - 6],
-        [e.point.x + 6, e.point.y + 6],
-      ];
-      const features = map.queryRenderedFeatures(bbox, {
-        layers: INTERACTIVE_LAYERS,
-      });
-      if (features.length === 0 && !isPickingLocationRef.current) {
-        onSelectEntityRef.current(null);
-      }
+      // Background deselect if not clicking a marker
+      onSelectEntityRef.current(null);
     });
 
     mapRef.current = map;
 
+    const currentMarkersMap = markersMapRef.current;
+
     return () => {
+      for (const marker of currentMarkersMap.values()) {
+        marker.remove();
+      }
+      currentMarkersMap.clear();
       map.remove();
       mapRef.current = null;
     };
@@ -336,51 +196,49 @@ export const MapView: React.FC<MapViewProps> = ({
     mapRef.current.getCanvas().style.cursor = isPickingLocation ? "crosshair" : "";
   }, [isPickingLocation]);
 
-  // Update GeoJSON source data and selection dynamic styles whenever entities or selection changes
+  // Synchronize pinpoint markers whenever entities or selectedEntityId changes
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapLoaded) return;
+    if (!map) return;
 
-    const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-    if (!source) return;
+    const currentMarkers = markersMapRef.current;
+    const nextEntityIds = new Set(entities.map((e) => e.id));
 
-    source.setData(buildGeoJSON(entities, selectedEntityId));
-
-    if (map.getLayer(LAYER_SELECTION_GLOW_ID)) {
-      map.setFilter(LAYER_SELECTION_GLOW_ID, [
-        "==",
-        ["get", "id"],
-        selectedEntityId || "",
-      ]);
+    // Remove markers that no longer exist
+    for (const [id, marker] of currentMarkers.entries()) {
+      if (!nextEntityIds.has(id)) {
+        marker.remove();
+        currentMarkers.delete(id);
+      }
     }
 
-    if (map.getLayer(LAYER_OUTER_PIN_ID)) {
-      map.setPaintProperty(LAYER_OUTER_PIN_ID, "circle-radius", [
-        "case",
-        ["==", ["get", "id"], selectedEntityId || ""],
-        16,
-        13,
-      ]);
-    }
+    // Add or update pinpoint markers
+    entities.forEach((entity) => {
+      const isSelected = entity.id === selectedEntityId;
 
-    if (map.getLayer(LAYER_INNER_DISC_ID)) {
-      map.setPaintProperty(LAYER_INNER_DISC_ID, "circle-radius", [
-        "case",
-        ["==", ["get", "id"], selectedEntityId || ""],
-        10,
-        8,
-      ]);
-    }
+      // Re-create marker element to guarantee fresh reactive state
+      if (currentMarkers.has(entity.id)) {
+        currentMarkers.get(entity.id)!.remove();
+      }
 
-    if (map.getLayer(LAYER_GLYPH_ID)) {
-      map.setLayoutProperty(LAYER_GLYPH_ID, "text-size", [
-        "case",
-        ["==", ["get", "id"], selectedEntityId || ""],
-        13,
-        11,
-      ]);
-    }
-  }, [entities, selectedEntityId, mapLoaded]);
+      const el = createPinpointElement(entity, isSelected, () => {
+        if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
+          onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
+          return;
+        }
+        onSelectEntityRef.current(entity.id);
+      });
+
+      const marker = new maplibregl.Marker({
+        element: el,
+        anchor: "bottom",
+      })
+        .setLngLat([entity.longitude, entity.latitude])
+        .addTo(map);
+
+      currentMarkers.set(entity.id, marker);
+    });
+  }, [entities, selectedEntityId]);
 
   // Pan / Fly to selected entity
   useEffect(() => {
@@ -412,10 +270,18 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>Brand Mark Points</span>
         </div>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-zinc-700">
-          <span className="flex items-center gap-1 font-medium">🚚 Vehicle</span>
-          <span className="flex items-center gap-1 font-medium">📡 IoT Sensor</span>
-          <span className="flex items-center gap-1 font-medium">🏭 Facility</span>
-          <span className="flex items-center gap-1 font-medium">📍 Other</span>
+          <span className="flex items-center gap-1 font-medium">
+            <FaTruck className="w-3 h-3 text-[#006d2c]" /> Vehicle
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <FaWifi className="w-3 h-3 text-[#006d2c]" /> IoT Device
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <FaWarehouse className="w-3 h-3 text-[#006d2c]" /> Facility
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <FaLocationDot className="w-3 h-3 text-[#006d2c]" /> Other
+          </span>
         </div>
         <div className="flex items-center justify-between pt-1 border-t border-zinc-100 text-[9px] text-zinc-500 font-medium">
           <span className="flex items-center gap-1">
