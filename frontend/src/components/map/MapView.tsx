@@ -18,7 +18,7 @@ import type { Entity } from "../../types/entity";
 import { TypeBadge, StatusBadge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
-import { createPinpointElement } from "./PinpointMarker";
+import { createPinpointElement, updatePinpointElement } from "./PinpointMarker";
 
 export type MapViewMode = "pinpoints" | "clusters" | "heatmap";
 
@@ -454,32 +454,34 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       }
 
-      // Add or update markers for unclustered entities
+      // Add or reconcile markers for unclustered entities
       entitiesRef.current.forEach((entity) => {
         if (!unclusteredIds.has(entity.id)) return;
 
         const isSelected = entity.id === selectedEntityIdRef.current;
+        const existingMarker = currentMarkers.get(entity.id);
 
-        if (currentMarkers.has(entity.id)) {
-          currentMarkers.get(entity.id)!.remove();
+        if (existingMarker) {
+          updatePinpointElement(existingMarker.getElement(), entity, isSelected);
+          existingMarker.setLngLat([entity.longitude, entity.latitude]);
+        } else {
+          const el = createPinpointElement(entity, isSelected, () => {
+            if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
+              onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
+              return;
+            }
+            onSelectEntityRef.current(entity.id);
+          });
+
+          const marker = new maplibregl.Marker({
+            element: el,
+            anchor: "bottom",
+          })
+            .setLngLat([entity.longitude, entity.latitude])
+            .addTo(m);
+
+          currentMarkers.set(entity.id, marker);
         }
-
-        const el = createPinpointElement(entity, isSelected, () => {
-          if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
-            onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
-            return;
-          }
-          onSelectEntityRef.current(entity.id);
-        });
-
-        const marker = new maplibregl.Marker({
-          element: el,
-          anchor: "bottom",
-        })
-          .setLngLat([entity.longitude, entity.latitude])
-          .addTo(m);
-
-        currentMarkers.set(entity.id, marker);
       });
     };
 
@@ -659,29 +661,32 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       }
 
+      // Reconcile DOM pinpoint markers without tearing down unchanged markers
       entities.forEach((entity) => {
         const isSelected = entity.id === selectedEntityId;
+        const existingMarker = currentMarkers.get(entity.id);
 
-        if (currentMarkers.has(entity.id)) {
-          currentMarkers.get(entity.id)!.remove();
+        if (existingMarker) {
+          updatePinpointElement(existingMarker.getElement(), entity, isSelected);
+          existingMarker.setLngLat([entity.longitude, entity.latitude]);
+        } else {
+          const el = createPinpointElement(entity, isSelected, () => {
+            if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
+              onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
+              return;
+            }
+            onSelectEntityRef.current(entity.id);
+          });
+
+          const marker = new maplibregl.Marker({
+            element: el,
+            anchor: "bottom",
+          })
+            .setLngLat([entity.longitude, entity.latitude])
+            .addTo(map);
+
+          currentMarkers.set(entity.id, marker);
         }
-
-        const el = createPinpointElement(entity, isSelected, () => {
-          if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
-            onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
-            return;
-          }
-          onSelectEntityRef.current(entity.id);
-        });
-
-        const marker = new maplibregl.Marker({
-          element: el,
-          anchor: "bottom",
-        })
-          .setLngLat([entity.longitude, entity.latitude])
-          .addTo(map);
-
-        currentMarkers.set(entity.id, marker);
       });
     } else if (viewMode === "clusters") {
       const geojsonData = buildGeoJSON(entities, selectedEntityId);
