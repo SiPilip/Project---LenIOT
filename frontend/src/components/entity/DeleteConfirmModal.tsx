@@ -1,4 +1,3 @@
-import React from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import type { Entity } from "../../types/entity";
 import {
@@ -19,13 +18,13 @@ interface DeleteConfirmModalProps {
   isLoading: boolean;
 }
 
-export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
+export const DeleteConfirmModal = ({
   entity,
   isOpen,
   onClose,
   onConfirm,
   isLoading,
-}) => {
+}: DeleteConfirmModalProps) => {
   if (!entity) return null;
 
   return (
@@ -41,20 +40,20 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg text-red-800 dark:text-red-300 text-xs leading-relaxed my-2">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs leading-relaxed my-2">
           Are you sure you want to permanently delete{" "}
-          <strong className="font-semibold text-red-950 dark:text-red-100">
+          <strong className="font-semibold text-red-950">
             "{entity.name}"
           </strong>{" "}
           from the map and database?
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-zinc-100">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={isLoading}
-            className="min-h-[44px] sm:min-h-[36px]"
+            className="min-h-11 sm:min-h-9 border-zinc-300 text-zinc-700"
           >
             Cancel
           </Button>
@@ -62,7 +61,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
             variant="destructive"
             onClick={onConfirm}
             disabled={isLoading}
-            className="min-h-[44px] sm:min-h-[36px]"
+            className="min-h-11 sm:min-h-9"
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
             Confirm Delete

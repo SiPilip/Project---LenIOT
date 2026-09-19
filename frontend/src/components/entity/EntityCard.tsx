@@ -1,5 +1,4 @@
-import React from "react";
-import { MapPin, Edit3, Trash2, ChevronRight } from "lucide-react";
+import { MapPin, Edit3, Trash2, ChevronRight, Tag } from "lucide-react";
 import type { Entity } from "../../types/entity";
 import { StatusBadge, TypeBadge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
@@ -14,51 +13,59 @@ interface EntityCardProps {
   onDelete: (entity: Entity) => void;
 }
 
-export const EntityCard: React.FC<EntityCardProps> = ({
+export const EntityCard = ({
   entity,
   isSelected,
   onSelect,
   onEdit,
   onDelete,
-}) => {
+}: EntityCardProps) => {
+  const attrCount = entity.attributes ? Object.keys(entity.attributes).length : 0;
+
   return (
     <Card
       onClick={() => onSelect(entity.id)}
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md active:scale-[0.99] text-left",
+        "cursor-pointer transition-all hover:shadow-md active:scale-[0.99] text-left border bg-white",
         isSelected
-          ? "border-indigo-500 bg-indigo-50/50 ring-2 ring-indigo-500/20 dark:bg-indigo-950/30"
-          : "hover:border-zinc-300 dark:hover:border-zinc-700"
+          ? "border-brand-500 bg-brand-50/80 ring-2 ring-brand-500/25 shadow-sm"
+          : "border-brand-100 hover:border-brand-300"
       )}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate">
+            <h4 className="font-semibold text-zinc-900 text-sm truncate">
               {entity.name}
             </h4>
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <TypeBadge type={entity.type} />
               <StatusBadge status={entity.status} />
+              {attrCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-brand-100/70 text-brand-700 border border-brand-200">
+                  <Tag className="w-2.5 h-2.5" />
+                  {attrCount} attrs
+                </span>
+              )}
             </div>
           </div>
           <ChevronRight
             className={cn(
               "w-4 h-4 transition-transform text-zinc-400 shrink-0",
-              isSelected && "rotate-90 text-indigo-600 dark:text-indigo-400"
+              isSelected && "rotate-90 text-brand-700"
             )}
           />
         </div>
 
         {entity.description && (
-          <p className="mt-2.5 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+          <p className="mt-2.5 text-xs text-zinc-600 line-clamp-2 leading-relaxed">
             {entity.description}
           </p>
         )}
 
-        <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-          <div className="flex items-center gap-1 font-mono text-[11px]">
-            <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+        <div className="mt-3 pt-3 border-t border-brand-100 flex items-center justify-between text-xs text-zinc-500">
+          <div className="flex items-center gap-1 font-mono text-[11px] text-zinc-600">
+            <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
             <span>
               {entity.latitude.toFixed(4)}, {entity.longitude.toFixed(4)}
             </span>
@@ -69,7 +76,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onEdit(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 min-h-9 min-w-9"
+              className="h-8 w-8 p-0 text-zinc-500 hover:text-brand-700 hover:bg-brand-100 min-h-9 min-w-9"
               aria-label="Edit entity"
               title="Edit entity"
             >
@@ -79,7 +86,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onDelete(entity)}
-              className="h-8 w-8 p-0 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 min-h-9 min-w-9"
+              className="h-8 w-8 p-0 text-zinc-500 hover:text-red-600 hover:bg-red-50 min-h-9 min-w-9"
               aria-label="Delete entity"
               title="Delete entity"
             >

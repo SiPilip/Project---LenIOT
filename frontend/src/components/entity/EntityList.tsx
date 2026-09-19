@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Search, Plus, SlidersHorizontal, MapPinOff, Loader2 } from "lucide-react";
 import type { Entity, EntityStatus, EntityType } from "../../types/entity";
 import { EntityCard } from "./EntityCard";
@@ -15,7 +15,7 @@ interface EntityListProps {
   isLoading: boolean;
 }
 
-export const EntityList: React.FC<EntityListProps> = ({
+export const EntityList = ({
   entities,
   selectedEntityId,
   onSelectEntity,
@@ -23,7 +23,7 @@ export const EntityList: React.FC<EntityListProps> = ({
   onEditEntity,
   onDeleteEntity,
   isLoading,
-}) => {
+}: EntityListProps) => {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<EntityType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<EntityStatus | "all">("all");
@@ -42,15 +42,15 @@ export const EntityList: React.FC<EntityListProps> = ({
   }, [entities, search, typeFilter, statusFilter]);
 
   return (
-    <aside className="w-full md:w-96 h-full flex flex-col bg-zinc-50/80 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-10 shadow-lg">
+    <aside className="w-full md:w-96 h-full flex flex-col bg-brand-50/50 border-r border-brand-100 z-10 shadow-lg">
       {/* Header */}
-      <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <div className="p-4 border-b border-brand-100 bg-white">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-lg font-bold tracking-tight text-brand-900">
               Geo Entity Manager
             </h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500">
               {entities.length} {entities.length === 1 ? "entity" : "entities"} tracked
             </p>
           </div>
@@ -58,7 +58,7 @@ export const EntityList: React.FC<EntityListProps> = ({
             variant="default"
             size="sm"
             onClick={onAddEntity}
-            className="gap-1.5 min-h-10 md:min-h-9"
+            className="gap-1.5 min-h-10 md:min-h-9 bg-brand-600 hover:bg-brand-700 text-white"
           >
             <Plus className="w-4 h-4" />
             <span>Add Entity</span>
@@ -70,10 +70,10 @@ export const EntityList: React.FC<EntityListProps> = ({
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           <Input
             type="text"
-            placeholder="Search entities..."
+            placeholder="Search entities by name or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-xs"
+            className="pl-9 h-9 text-xs border-zinc-300 focus-visible:ring-brand-600 focus-visible:border-brand-600"
           />
         </div>
 
@@ -86,7 +86,7 @@ export const EntityList: React.FC<EntityListProps> = ({
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as EntityType | "all")}
             aria-label="Filter by type"
-            className="flex-1 py-1.5 px-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[36px]"
+            className="flex-1 py-1.5 px-2.5 bg-brand-50/60 rounded-md border border-brand-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-600 min-h-9"
           >
             <option value="all">All Types</option>
             <option value="vehicle">Vehicle</option>
@@ -99,7 +99,7 @@ export const EntityList: React.FC<EntityListProps> = ({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as EntityStatus | "all")}
             aria-label="Filter by status"
-            className="flex-1 py-1.5 px-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-h-[36px]"
+            className="flex-1 py-1.5 px-2.5 bg-brand-50/60 rounded-md border border-brand-200 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-600 min-h-9"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -113,15 +113,15 @@ export const EntityList: React.FC<EntityListProps> = ({
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-48 text-zinc-400 gap-2">
-            <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+            <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
             <p className="text-xs">Loading entities...</p>
           </div>
         ) : filteredEntities.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-56 text-center px-4">
-            <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-400 mb-3">
+            <div className="p-3 bg-brand-100/60 rounded-full text-brand-700 mb-3">
               <MapPinOff className="w-6 h-6" />
             </div>
-            <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <h4 className="text-sm font-semibold text-zinc-800">
               No entities found
             </h4>
             <p className="text-xs text-zinc-500 mt-1 max-w-xs">
@@ -134,7 +134,7 @@ export const EntityList: React.FC<EntityListProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onAddEntity}
-                className="mt-4 gap-1.5 min-h-[44px]"
+                className="mt-4 gap-1.5 min-h-11 border-brand-200 text-brand-700 hover:bg-brand-50"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add First Entity</span>
@@ -156,9 +156,9 @@ export const EntityList: React.FC<EntityListProps> = ({
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-500 flex items-center justify-between">
+      <div className="p-3 border-t border-brand-100 bg-white text-xs text-zinc-500 flex items-center justify-between">
         <span>MapLibre GL + OpenStreetMap</span>
-        <span className="font-mono text-[11px]">v1.0.0</span>
+        <span className="font-mono text-[11px] text-zinc-400">Pure Go SQLite</span>
       </div>
     </aside>
   );

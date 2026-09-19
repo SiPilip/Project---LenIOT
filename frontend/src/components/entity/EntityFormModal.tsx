@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MapPin, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, AlertCircle, Loader2, Code2 } from "lucide-react";
 import { entityInputSchema, type EntityInput } from "../../schemas/entity";
 import type { Entity } from "../../types/entity";
 import {
@@ -28,7 +28,7 @@ interface EntityFormModalProps {
   isLoading: boolean;
 }
 
-export const EntityFormModal: React.FC<EntityFormModalProps> = ({
+export const EntityFormModal = ({
   isOpen,
   onClose,
   onSubmit,
@@ -36,9 +36,11 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
   pickedCoordinates,
   onStartPickLocation,
   isLoading,
-}) => {
+}: EntityFormModalProps) => {
   const isEdit = !!initialData;
   const [serverError, setServerError] = useState<string | null>(null);
+  const [attributesJson, setAttributesJson] = useState<string>("{}");
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   const {
     register,
@@ -70,6 +72,11 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
         latitude: initialData.latitude,
         longitude: initialData.longitude,
       });
+      setAttributesJson(
+        initialData.attributes && Object.keys(initialData.attributes).length > 0
+          ? JSON.stringify(initialData.attributes, null, 2)
+          : "{}"
+      );
     } else {
       reset({
         name: "",
@@ -79,7 +86,10 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
         latitude: -2.976074,
         longitude: 104.775431,
       });
+      setAttributesJson("{}");
     }
+    setServerError(null);
+    setJsonError(null);
   }, [initialData, reset, isOpen]);
 
   // Update coordinates if picked from map
@@ -90,8 +100,74 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
     }
   }, [pickedCoordinates, setValue]);
 
+  // Attribute Presets
+  const applyPreset = (presetType: "vehicle" | "iot_device" | "facility" | "clear") => {
+    setJsonError(null);
+    if (presetType === "vehicle") {
+      setAttributesJson(
+        JSON.stringify(
+          {
+            license_plate: "BG 8421 LN",
+            fuel_level_pct: 82,
+            speed_kmh: 55,
+            driver_name: "Rahmat Hidayat",
+          },
+          null,
+          2
+        )
+      );
+    } else if (presetType === "iot_device") {
+      setAttributesJson(
+        JSON.stringify(
+          {
+            battery_pct: 95,
+            water_temp_c: 28.4,
+            dissolved_oxygen: 6.2,
+            firmware_version: "v3.1.2",
+          },
+          null,
+          2
+        )
+      );
+    } else if (presetType === "facility") {
+      setAttributesJson(
+        JSON.stringify(
+          {
+            capacity_sqm: 4500,
+            facility_manager: "Ir. Hendra Wijaya",
+            dock_doors: 12,
+            operating_hours: "24/7",
+          },
+          null,
+          2
+        )
+      );
+    } else {
+      setAttributesJson("{}");
+    }
+  };
+
   const handleFormSubmit = async (data: EntityInput) => {
     setServerError(null);
+    setJsonError(null);
+
+    // Parse attributes JSON
+    let parsedAttrs: Record<string, unknown> = {};
+    if (attributesJson.trim()) {
+      try {
+        parsedAttrs = JSON.parse(attributesJson);
+        if (typeof parsedAttrs !== "object" || Array.isArray(parsedAttrs) || parsedAttrs === null) {
+          setJsonError("Attributes must be a valid JSON object (key-value pairs).");
+          return;
+        }
+      } catch (err: unknown) {
+        setJsonError(err instanceof Error ? `JSON syntax error: ${err.message}` : "Invalid JSON");
+        return;
+      }
+    }
+
+    data.attributes = parsedAttrs;
+
     try {
       await onSubmit(data);
       onClose();
@@ -117,24 +193,27 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
 
   const handleClose = () => {
     setServerError(null);
+    setJsonError(null);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md text-left">
+      <DialogContent className="sm:max-w-lg text-left bg-white border border-brand-200 shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Entity" : "Add New Entity"}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-xl text-zinc-900 font-semibold">
+            {isEdit ? "Edit Entity" : "Add New Entity"}
+          </DialogTitle>
+          <DialogDescription className="text-zinc-600 text-xs">
             {isEdit
-              ? "Update entity details and geographic position."
-              : "Register a new geo-located entity into the system."}
+              ? "Update entity details, dynamic JSON attributes, and geographic coordinates."
+              : "Register a new geo-located entity into the geospatial system."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mt-2">
           {serverError && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-xs text-red-600 dark:text-red-300">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs text-red-700">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{serverError}</span>
             </div>
@@ -142,30 +221,30 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
 
           {/* Name Field */}
           <div className="space-y-1.5">
-            <Label htmlFor="entity-name">
-              Entity Name <span className="text-red-500">*</span>
+            <Label htmlFor="entity-name" className="text-zinc-800 text-xs font-medium">
+              Entity Name (min 3 chars) <span className="text-red-500">*</span>
             </Label>
             <Input
               id="entity-name"
               type="text"
-              placeholder="e.g. Patrol Vehicle A-1"
+              placeholder="e.g. Logistics Truck Alpha-01"
               {...register("name")}
             />
             {errors.name && (
-              <p className="text-xs text-red-500">{errors.name.message}</p>
+              <p className="text-xs text-red-600 font-medium">{errors.name.message}</p>
             )}
           </div>
 
           {/* Type & Status */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="entity-type">
-                Type <span className="text-red-500">*</span>
+              <Label htmlFor="entity-type" className="text-zinc-800 text-xs font-medium">
+                Type / Category <span className="text-red-500">*</span>
               </Label>
               <select
                 id="entity-type"
                 {...register("type")}
-                className="flex h-9 w-full rounded-md border border-zinc-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 min-h-[36px]"
+                className="flex h-9 w-full rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm text-zinc-900 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600 min-h-9"
               >
                 <option value="vehicle">Vehicle</option>
                 <option value="iot_device">IoT Device</option>
@@ -173,25 +252,25 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
                 <option value="other">Other</option>
               </select>
               {errors.type && (
-                <p className="text-xs text-red-500">{errors.type.message}</p>
+                <p className="text-xs text-red-600 font-medium">{errors.type.message}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="entity-status">
-                Status <span className="text-red-500">*</span>
+              <Label htmlFor="entity-status" className="text-zinc-800 text-xs font-medium">
+                Operational Status <span className="text-red-500">*</span>
               </Label>
               <select
                 id="entity-status"
                 {...register("status")}
-                className="flex h-9 w-full rounded-md border border-zinc-200 bg-white px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 min-h-[36px]"
+                className="flex h-9 w-full rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm text-zinc-900 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600 min-h-9"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="maintenance">Maintenance</option>
               </select>
               {errors.status && (
-                <p className="text-xs text-red-500">{errors.status.message}</p>
+                <p className="text-xs text-red-600 font-medium">{errors.status.message}</p>
               )}
             </div>
           </div>
@@ -199,15 +278,15 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
           {/* Coordinates */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>
-                Coordinates <span className="text-red-500">*</span>
+              <Label className="text-zinc-800 text-xs font-medium">
+                Geographic Coordinates <span className="text-red-500">*</span>
               </Label>
               <button
                 type="button"
                 onClick={onStartPickLocation}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer min-h-[32px] px-1"
+                className="text-xs text-brand-600 hover:text-brand-700 hover:underline font-medium flex items-center gap-1 cursor-pointer min-h-8 px-1"
               >
-                <MapPin className="w-3.5 h-3.5" />
+                <MapPin className="w-3.5 h-3.5 text-brand-600" />
                 Pick on Map
               </button>
             </div>
@@ -220,7 +299,7 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
                   {...register("latitude", { valueAsNumber: true })}
                 />
                 {errors.latitude && (
-                  <p className="mt-1 text-xs text-red-500">{errors.latitude.message}</p>
+                  <p className="mt-1 text-xs text-red-600 font-medium">{errors.latitude.message}</p>
                 )}
               </div>
               <div>
@@ -231,7 +310,7 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
                   {...register("longitude", { valueAsNumber: true })}
                 />
                 {errors.longitude && (
-                  <p className="mt-1 text-xs text-red-500">{errors.longitude.message}</p>
+                  <p className="mt-1 text-xs text-red-600 font-medium">{errors.longitude.message}</p>
                 )}
               </div>
             </div>
@@ -239,25 +318,81 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="entity-desc">Description (Optional, max 500 chars)</Label>
+            <Label htmlFor="entity-desc" className="text-zinc-800 text-xs font-medium">
+              Description (Optional, max 500 chars)
+            </Label>
             <Textarea
               id="entity-desc"
-              rows={3}
+              rows={2}
               placeholder="Operational notes, specifications, or identifier tag..."
               {...register("description")}
-              className="resize-none"
+              className="resize-none text-xs"
             />
             {errors.description && (
-              <p className="text-xs text-red-500">{errors.description.message}</p>
+              <p className="text-xs text-red-600 font-medium">{errors.description.message}</p>
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          {/* Dynamic Attributes JSON Editor */}
+          <div className="space-y-2 p-3 bg-brand-50/70 border border-brand-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-brand-700">
+                <Code2 className="w-3.5 h-3.5" />
+                <span>Dynamic Attributes (JSON)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-zinc-500 mr-1">Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("vehicle")}
+                  className="px-2 py-0.5 text-[11px] rounded bg-white border border-brand-200 text-brand-700 hover:bg-brand-100 transition-colors"
+                >
+                  Vehicle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("iot_device")}
+                  className="px-2 py-0.5 text-[11px] rounded bg-white border border-brand-200 text-brand-700 hover:bg-brand-100 transition-colors"
+                >
+                  IoT
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("facility")}
+                  className="px-2 py-0.5 text-[11px] rounded bg-white border border-brand-200 text-brand-700 hover:bg-brand-100 transition-colors"
+                >
+                  Facility
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              value={attributesJson}
+              onChange={(e) => {
+                setAttributesJson(e.target.value);
+                setJsonError(null);
+              }}
+              rows={4}
+              className="w-full font-mono text-xs p-2.5 rounded-md border border-zinc-300 bg-white text-zinc-900 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600 resize-y"
+              placeholder='{\n  "battery_level": 94,\n  "firmware": "v2.0"\n}'
+            />
+            {jsonError && (
+              <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{jsonError}</span>
+              </p>
+            )}
+            <p className="text-[11px] text-zinc-500">
+              Flexible JSON metadata specific to this entity (e.g., license plate, sensor metrics, capacity).
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-zinc-100">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="min-h-[44px] sm:min-h-[36px]"
+              className="min-h-11 sm:min-h-9 border-zinc-300 text-zinc-700"
             >
               Cancel
             </Button>
@@ -265,7 +400,7 @@ export const EntityFormModal: React.FC<EntityFormModalProps> = ({
               type="submit"
               variant="default"
               disabled={isLoading}
-              className="min-h-[44px] sm:min-h-[36px]"
+              className="min-h-11 sm:min-h-9 bg-brand-600 hover:bg-brand-700 text-white"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
               {isEdit ? "Save Changes" : "Create Entity"}

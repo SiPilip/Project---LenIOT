@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import toast, { Toaster } from "react-hot-toast";
 import { Map, List, AlertCircle } from "lucide-react";
@@ -8,12 +8,13 @@ import {
   useUpdateEntity,
   useDeleteEntity,
 } from "./api/entities";
-import type { Entity, EntityInput } from "./types/entity";
+import type { EntityInput } from "./types/entity";
 import { MapView } from "./components/map/MapView";
 import { EntityList } from "./components/entity/EntityList";
 import { EntityFormModal } from "./components/entity/EntityFormModal";
 import { EntityDetailModal } from "./components/entity/EntityDetailModal";
 import { DeleteConfirmModal } from "./components/entity/DeleteConfirmModal";
+import { MapProvider, useMapContext } from "./context/MapContext";
 import { cn } from "./lib/utils";
 
 const queryClient = new QueryClient({
@@ -31,55 +32,33 @@ function Dashboard() {
   const updateMutation = useUpdateEntity();
   const deleteMutation = useDeleteEntity();
 
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEntity, setEditingEntity] = useState<Entity | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [deletingEntity, setDeletingEntity] = useState<Entity | null>(null);
-
-  // Mobile active tab: 'map' or 'list'
-  const [mobileTab, setMobileTab] = useState<"map" | "list">("map");
-
-  // Map coordinate picking state
-  const [isPickingLocation, setIsPickingLocation] = useState(false);
-  const [pickedCoordinates, setPickedCoordinates] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
+  const {
+    selectedEntityId,
+    selectEntity,
+    isPickingLocation,
+    pickedCoordinates,
+    startPickingLocation,
+    finishPickingLocation,
+    activeModal,
+    editingEntity,
+    deletingEntity,
+    detailEntity,
+    openCreateModal,
+    openEditModal,
+    openDetailModal,
+    openDeleteModal,
+    closeModal,
+    mobileTab,
+    setMobileTab,
+  } = useMapContext();
 
   const selectedEntity = useMemo(
     () => entities.find((e) => e.id === selectedEntityId) || null,
     [entities, selectedEntityId]
   );
 
-  const handleSelectEntity = (id: string) => {
-    setSelectedEntityId(id);
-    setIsDetailOpen(true);
-  };
-
-  const handleOpenAddForm = () => {
-    setEditingEntity(null);
-    setPickedCoordinates(null);
-    setIsFormOpen(true);
-  };
-
-  const handleOpenEditForm = (entity: Entity) => {
-    setEditingEntity(entity);
-    setPickedCoordinates(null);
-    setIsFormOpen(true);
-  };
-
-  const handleStartPickLocation = () => {
-    setIsFormOpen(false);
-    setIsPickingLocation(true);
-    // On mobile, switch to map view so user can pick coordinates easily
-    setMobileTab("map");
-  };
-
-  const handleMapClickCoordinates = (lat: number, lng: number) => {
-    setPickedCoordinates({ lat, lng });
-    setIsPickingLocation(false);
-    setIsFormOpen(true);
-    toast.success(`Location selected: [${lat}, ${lng}]`);
+  const handleSelectEntity = (id: string | null) => {
+    selectEntity(id);
   };
 
   const handleFormSubmit = async (input: EntityInput) => {
@@ -88,7 +67,7 @@ function Dashboard() {
       toast.success(`Entity "${input.name}" updated successfully.`);
     } else {
       const created = await createMutation.mutateAsync(input);
-      setSelectedEntityId(created.id);
+      selectEntity(created.id);
       toast.success(`Entity "${input.name}" created successfully.`);
     }
   };
@@ -98,29 +77,28 @@ function Dashboard() {
     try {
       await deleteMutation.mutateAsync(deletingEntity.id);
       if (selectedEntityId === deletingEntity.id) {
-        setSelectedEntityId(null);
-        setIsDetailOpen(false);
+        selectEntity(null);
       }
       toast.success(`Entity "${deletingEntity.name}" deleted.`);
-      setDeletingEntity(null);
+      closeModal();
     } catch {
-      toast.error("Failed to delete entity. Please check your network.");
+      toast.error("Failed to delete entity. Please check your network connection.");
     }
   };
 
   return (
-    <div className="relative w-screen h-screen flex flex-col md:flex-row overflow-hidden bg-white dark:bg-zinc-950 font-sans">
-      {/* Toast provider with Shadcn styling */}
+    <div className="relative w-screen h-screen flex flex-col md:flex-row overflow-hidden bg-brand-50 font-sans text-zinc-900">
+      {/* Toast notifications */}
       <Toaster
         position="top-right"
         toastOptions={{
           className:
-            "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 text-xs shadow-lg rounded-lg",
+            "border border-brand-200 bg-white text-zinc-900 text-xs shadow-lg rounded-lg font-sans",
           duration: 3500,
         }}
       />
 
-      {/* Backend connection banner if unreachable */}
+      {/* Backend connection notification banner */}
       {fetchError && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-zinc-950 px-4 py-2 text-xs font-semibold flex items-center justify-center gap-2 shadow-md">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -130,7 +108,7 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Sidebar: Visible always on desktop (md:block), or only when active tab is 'list' on mobile */}
+      {/* Sidebar / Entity List */}
       <div
         className={cn(
           "h-full md:block",
@@ -142,17 +120,17 @@ function Dashboard() {
           selectedEntityId={selectedEntityId}
           onSelectEntity={(id) => {
             handleSelectEntity(id);
-            // On mobile, switch to map view when entity is selected to see it on the map
+            // On mobile, switch to map view when entity is selected
             setMobileTab("map");
           }}
-          onAddEntity={handleOpenAddForm}
-          onEditEntity={handleOpenEditForm}
-          onDeleteEntity={(entity) => setDeletingEntity(entity)}
+          onAddEntity={openCreateModal}
+          onEditEntity={openEditModal}
+          onDeleteEntity={openDeleteModal}
           isLoading={isLoading}
         />
       </div>
 
-      {/* Main Map View: Visible always on desktop, or only when active tab is 'map' on mobile */}
+      {/* Map View */}
       <main
         className={cn(
           "flex-1 h-full relative",
@@ -163,19 +141,24 @@ function Dashboard() {
           entities={entities}
           selectedEntityId={selectedEntityId}
           onSelectEntity={handleSelectEntity}
-          onMapClickCoordinates={handleMapClickCoordinates}
+          onOpenDetail={openDetailModal}
+          onOpenEdit={openEditModal}
+          onMapClickCoordinates={(lat, lng) => {
+            finishPickingLocation(lat, lng);
+            toast.success(`Coordinates selected: [${lat}, ${lng}]`);
+          }}
           isPickingLocation={isPickingLocation}
         />
 
-        {/* Mobile floating navigation switch (Map vs List) */}
-        <div className="md:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-full p-1 shadow-xl border border-zinc-200 dark:border-zinc-800">
+        {/* Mobile floating view switch (Map vs List) */}
+        <div className="md:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center bg-white/95 backdrop-blur-md rounded-full p-1 shadow-xl border border-brand-200">
           <button
             onClick={() => setMobileTab("map")}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all min-h-[44px] min-w-[100px] justify-center cursor-pointer",
+              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all min-h-11 min-w-25 justify-center cursor-pointer",
               mobileTab === "map"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900"
+                ? "bg-brand-600 text-white shadow-sm"
+                : "text-zinc-600 hover:text-brand-900"
             )}
           >
             <Map className="w-4 h-4" />
@@ -184,10 +167,10 @@ function Dashboard() {
           <button
             onClick={() => setMobileTab("list")}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all min-h-[44px] min-w-[100px] justify-center cursor-pointer",
+              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all min-h-11 min-w-25 justify-center cursor-pointer",
               mobileTab === "list"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900"
+                ? "bg-brand-600 text-white shadow-sm"
+                : "text-zinc-600 hover:text-brand-900"
             )}
           >
             <List className="w-4 h-4" />
@@ -196,34 +179,31 @@ function Dashboard() {
         </div>
       </main>
 
-      {/* Entity Create / Edit Dialog */}
+      {/* Entity Create / Edit Modal */}
       <EntityFormModal
-        isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setIsPickingLocation(false);
-        }}
+        isOpen={activeModal === "create" || activeModal === "edit"}
+        onClose={closeModal}
         onSubmit={handleFormSubmit}
         initialData={editingEntity}
         pickedCoordinates={pickedCoordinates}
-        onStartPickLocation={handleStartPickLocation}
+        onStartPickLocation={startPickingLocation}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
 
-      {/* Entity Detail Dialog */}
+      {/* Entity Detail Modal */}
       <EntityDetailModal
-        entity={selectedEntity}
-        isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        onEdit={(entity) => handleOpenEditForm(entity)}
-        onDelete={(entity) => setDeletingEntity(entity)}
+        entity={detailEntity || selectedEntity}
+        isOpen={activeModal === "detail"}
+        onClose={closeModal}
+        onEdit={(entity) => openEditModal(entity)}
+        onDelete={(entity) => openDeleteModal(entity)}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         entity={deletingEntity}
-        isOpen={!!deletingEntity}
-        onClose={() => setDeletingEntity(null)}
+        isOpen={activeModal === "delete"}
+        onClose={closeModal}
         onConfirm={handleDeleteConfirm}
         isLoading={deleteMutation.isPending}
       />
@@ -234,7 +214,9 @@ function Dashboard() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Dashboard />
+      <MapProvider>
+        <Dashboard />
+      </MapProvider>
     </QueryClientProvider>
   );
 }

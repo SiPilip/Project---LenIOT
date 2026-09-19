@@ -1,12 +1,17 @@
 import React, { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Feature, Point, FeatureCollection } from "geojson";
+import { MapPin, ArrowRight, Edit2, X } from "lucide-react";
 import type { Entity } from "../../types/entity";
+import { TypeBadge, StatusBadge } from "../ui/badge";
+import { Button } from "../ui/button";
 
 interface MapViewProps {
   entities: Entity[];
   selectedEntityId: string | null;
-  onSelectEntity: (id: string) => void;
+  onSelectEntity: (id: string | null) => void;
+  onOpenDetail?: (entity: Entity) => void;
+  onOpenEdit?: (entity: Entity) => void;
   onMapClickCoordinates?: (lat: number, lng: number) => void;
   isPickingLocation?: boolean;
 }
@@ -42,6 +47,8 @@ export const MapView: React.FC<MapViewProps> = ({
   entities,
   selectedEntityId,
   onSelectEntity,
+  onOpenDetail,
+  onOpenEdit,
   onMapClickCoordinates,
   isPickingLocation = false,
 }) => {
@@ -64,6 +71,8 @@ export const MapView: React.FC<MapViewProps> = ({
     isPickingLocationRef.current = isPickingLocation;
   }, [isPickingLocation]);
 
+  const selectedEntity = entities.find((e) => e.id === selectedEntityId) || null;
+
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -71,8 +80,8 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: osmRasterStyle,
-      center: [104.75, -2.98], // Center in Indonesia / Palembang
-      zoom: 6,
+      center: [104.7565, -2.9835], // Center in Indonesia / Palembang
+      zoom: 7,
     });
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -100,17 +109,17 @@ export const MapView: React.FC<MapViewProps> = ({
         type: "circle",
         source: SOURCE_ID,
         paint: {
-          "circle-radius": 12,
+          "circle-radius": 14,
           "circle-color": [
             "match",
             ["get", "type"],
             "vehicle",
-            "#3b82f6",
+            "#0284c7",
             "iot_device",
-            "#8b5cf6",
+            "#238b45",
             "facility",
-            "#f59e0b",
-            "#64748b",
+            "#d97706",
+            "#475569",
           ],
           "circle-opacity": 0.25,
         },
@@ -122,19 +131,19 @@ export const MapView: React.FC<MapViewProps> = ({
         type: "circle",
         source: SOURCE_ID,
         paint: {
-          "circle-radius": 7,
+          "circle-radius": 7.5,
           "circle-color": [
             "match",
             ["get", "type"],
             "vehicle",
-            "#2563eb",
+            "#0284c7",
             "iot_device",
-            "#7c3aed",
+            "#238b45",
             "facility",
             "#d97706",
             "#475569",
           ],
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 2.5,
           "circle-stroke-color": "#ffffff",
         },
       });
@@ -147,15 +156,15 @@ export const MapView: React.FC<MapViewProps> = ({
         layout: {
           "text-field": ["get", "name"],
           "text-size": 11,
-          "text-offset": [0, 1.2],
+          "text-offset": [0, 1.3],
           "text-anchor": "top",
           "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
           "text-optional": true,
         },
         paint: {
-          "text-color": "#1f2937",
+          "text-color": "#00441b",
           "text-halo-color": "#ffffff",
-          "text-halo-width": 1.5,
+          "text-halo-width": 2,
         },
       });
     });
@@ -172,12 +181,23 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     });
 
-    // Handle map click for location picking
+    // Handle map click for location picking or background deselect
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
         const lat = Number(e.lngLat.lat.toFixed(6));
         const lng = Number(e.lngLat.lng.toFixed(6));
         onMapClickCoordinatesRef.current(lat, lng);
+        return;
+      }
+
+      // If clicked empty canvas (not entity circle), deselect entity
+      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+        [e.point.x - 5, e.point.y - 5],
+        [e.point.y + 5, e.point.y + 5],
+      ];
+      const features = map.queryRenderedFeatures(bbox, { layers: [LAYER_CIRCLES_ID] });
+      if (features.length === 0 && !isPickingLocationRef.current) {
+        // Leave selection or deselect
       }
     });
 
@@ -241,19 +261,25 @@ export const MapView: React.FC<MapViewProps> = ({
 
     source.setData(collection);
 
-    // Dynamically update paint properties for selected entity size
+    // Dynamically update paint properties for selected entity size & halo
     if (map.getLayer(LAYER_CIRCLES_ID)) {
       map.setPaintProperty(LAYER_CIRCLES_ID, "circle-radius", [
         "case",
         ["==", ["get", "id"], selectedEntityId || ""],
-        10,
-        6.5,
+        10.5,
+        7,
       ]);
       map.setPaintProperty(LAYER_CIRCLES_ID, "circle-stroke-width", [
         "case",
         ["==", ["get", "id"], selectedEntityId || ""],
-        3,
-        2,
+        3.5,
+        2.5,
+      ]);
+      map.setPaintProperty(LAYER_CIRCLES_ID, "circle-stroke-color", [
+        "case",
+        ["==", ["get", "id"], selectedEntityId || ""],
+        "#ffffff",
+        "#ffffff",
       ]);
     }
 
@@ -261,8 +287,8 @@ export const MapView: React.FC<MapViewProps> = ({
       map.setPaintProperty(LAYER_GLOW_ID, "circle-radius", [
         "case",
         ["==", ["get", "id"], selectedEntityId || ""],
-        20,
-        12,
+        22,
+        14,
       ]);
       map.setPaintProperty(LAYER_GLOW_ID, "circle-opacity", [
         "case",
@@ -282,17 +308,98 @@ export const MapView: React.FC<MapViewProps> = ({
         center: [target.longitude, target.latitude],
         zoom: Math.max(mapRef.current.getZoom(), 12),
         essential: true,
-        duration: 1200,
+        duration: 1000,
       });
     }
   }, [selectedEntityId, entities]);
 
+  // Format first 2 attributes for quick infowindow display
+  const attributeEntries = selectedEntity?.attributes
+    ? Object.entries(selectedEntity.attributes).slice(0, 3)
+    : [];
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainerRef} className="w-full h-full" />
+
+      {/* Crosshair Picking Alert */}
       {isPickingLocation && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-bounce">
-          <span>Click anywhere on the map to select coordinates</span>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-brand-700 text-white px-5 py-2.5 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 border border-brand-300 animate-bounce">
+          <MapPin className="w-4 h-4 text-brand-300" />
+          <span>Click anywhere on the map to set coordinates</span>
+        </div>
+      )}
+
+      {/* Interactive Infowindow Card on Map */}
+      {selectedEntity && !isPickingLocation && (
+        <div className="absolute bottom-6 left-4 right-4 sm:right-auto sm:w-96 z-20 bg-white/95 backdrop-blur-md rounded-xl p-4 shadow-xl border border-brand-200 text-left transition-all animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                <TypeBadge type={selectedEntity.type} />
+                <StatusBadge status={selectedEntity.status} />
+              </div>
+              <h4 className="font-semibold text-zinc-900 truncate text-base">
+                {selectedEntity.name}
+              </h4>
+            </div>
+            <button
+              onClick={() => onSelectEntity(null)}
+              className="text-zinc-400 hover:text-zinc-700 p-1 rounded-md transition-colors cursor-pointer"
+              title="Close Infowindow"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono mt-2">
+            <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+            <span>
+              {selectedEntity.latitude.toFixed(5)}, {selectedEntity.longitude.toFixed(5)}
+            </span>
+          </div>
+
+          {selectedEntity.description && (
+            <p className="text-xs text-zinc-600 line-clamp-2 mt-2 leading-relaxed">
+              {selectedEntity.description}
+            </p>
+          )}
+
+          {/* Dynamic Attributes Preview */}
+          {attributeEntries.length > 0 && (
+            <div className="mt-3 pt-2.5 border-t border-brand-100 flex flex-wrap gap-1.5">
+              {attributeEntries.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brand-50 border border-brand-100 text-[11px] text-brand-700"
+                >
+                  <span className="font-medium">{key}:</span>
+                  <span className="font-mono">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3.5 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenEdit && onOpenEdit(selectedEntity)}
+              className="text-xs h-8 gap-1 border-brand-200 text-brand-700 hover:bg-brand-50"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onOpenDetail && onOpenDetail(selectedEntity)}
+              className="text-xs h-8 gap-1.5 bg-brand-600 hover:bg-brand-700 text-white"
+            >
+              <span>Full Details</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

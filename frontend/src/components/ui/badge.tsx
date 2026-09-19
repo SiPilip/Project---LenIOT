@@ -4,33 +4,33 @@ import { cn } from "../../lib/utils";
 import type { EntityStatus, EntityType } from "../../types/entity";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#238b45] focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-indigo-600 text-white shadow hover:bg-indigo-700",
+          "border-transparent bg-[#238b45] text-white shadow hover:bg-[#006d2c]",
         secondary:
-          "border-transparent bg-zinc-100 text-zinc-900 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100",
+          "border-[#c7e9c0] bg-[#e5f5e0] text-[#00441b] hover:bg-[#c7e9c0]",
         destructive:
           "border-transparent bg-red-600 text-white shadow hover:bg-red-700",
-        outline: "text-zinc-900 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800",
-        // Semantic Entity Status Variants
+        outline: "text-zinc-800 border-zinc-200 bg-white",
+        // Semantic Entity Status Variants (Light Theme)
         active:
-          "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+          "border-[#a1d99b] bg-[#f7fcf5] text-[#006d2c]",
         inactive:
-          "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+          "border-zinc-200 bg-zinc-50 text-zinc-600",
         maintenance:
-          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-        // Semantic Entity Type Variants
+          "border-amber-200 bg-amber-50 text-amber-800",
+        // Semantic Entity Type Variants (Light Theme)
         vehicle:
-          "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+          "border-sky-200 bg-sky-50 text-sky-800",
         iot_device:
-          "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300",
+          "border-emerald-300 bg-[#e5f5e0] text-[#006d2c]",
         facility:
-          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+          "border-teal-200 bg-teal-50 text-teal-800",
         other:
-          "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+          "border-slate-200 bg-slate-50 text-slate-700",
       },
     },
     defaultVariants: {
