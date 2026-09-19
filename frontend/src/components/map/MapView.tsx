@@ -28,7 +28,16 @@ interface MapViewProps {
   isPickingLocation?: boolean;
 }
 
-const osmRasterStyle: maplibregl.StyleSpecification = {
+const CLUSTER_SOURCE_ID = "clustered-entities-source";
+const RAW_SOURCE_ID = "raw-entities-source";
+const LAYER_HEATMAP = "entities-heatmap-layer";
+const LAYER_HEATMAP_POINTS = "entities-heatmap-points-layer";
+const LAYER_CLUSTER_CIRCLES = "entities-cluster-circles-layer";
+const LAYER_CLUSTER_COUNT = "entities-cluster-count-layer";
+const LAYER_UNCLUSTERED_POINTS = "entities-unclustered-points-layer";
+const LAYER_UNCLUSTERED_LABELS = "entities-unclustered-labels-layer";
+
+const baseMapStyle: maplibregl.StyleSpecification = {
   version: 8,
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
@@ -39,6 +48,18 @@ const osmRasterStyle: maplibregl.StyleSpecification = {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
+    [CLUSTER_SOURCE_ID]: {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+      cluster: true,
+      clusterMaxZoom: 14,
+      clusterRadius: 50,
+    },
+    [RAW_SOURCE_ID]: {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+      cluster: false,
+    },
   },
   layers: [
     {
@@ -48,15 +69,168 @@ const osmRasterStyle: maplibregl.StyleSpecification = {
       minzoom: 0,
       maxzoom: 19,
     },
+    {
+      id: LAYER_HEATMAP,
+      type: "heatmap",
+      source: RAW_SOURCE_ID,
+      layout: { visibility: "none" },
+      paint: {
+        "heatmap-weight": 1,
+        "heatmap-intensity": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0,
+          1.2,
+          9,
+          2.5,
+          14,
+          4.5,
+        ],
+        "heatmap-color": [
+          "interpolate",
+          ["linear"],
+          ["heatmap-density"],
+          0,
+          "rgba(247, 252, 245, 0)",
+          0.05,
+          "rgba(199, 233, 192, 0.75)",
+          0.2,
+          "rgba(161, 217, 155, 0.85)",
+          0.4,
+          "rgba(116, 196, 118, 0.9)",
+          0.6,
+          "rgba(65, 171, 93, 0.95)",
+          0.8,
+          "rgba(35, 139, 69, 1)",
+          1,
+          "rgba(0, 68, 27, 1)",
+        ],
+        "heatmap-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0,
+          20,
+          8,
+          35,
+          12,
+          55,
+          16,
+          80,
+        ],
+        "heatmap-opacity": 0.9,
+      },
+    },
+    {
+      id: LAYER_HEATMAP_POINTS,
+      type: "circle",
+      source: RAW_SOURCE_ID,
+      layout: { visibility: "none" },
+      paint: {
+        "circle-radius": 5,
+        "circle-color": "#00441b",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+        "circle-opacity": 0.85,
+      },
+    },
+    {
+      id: LAYER_CLUSTER_CIRCLES,
+      type: "circle",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": [
+          "step",
+          ["get", "point_count"],
+          "#41ab5d", // < 10 points: brand-500
+          10,
+          "#238b45", // 10 - 50 points: brand-600
+          50,
+          "#00441b", // > 50 points: brand-900
+        ],
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          20,
+          10,
+          26,
+          50,
+          32,
+        ],
+        "circle-stroke-width": 4,
+        "circle-stroke-color": [
+          "step",
+          ["get", "point_count"],
+          "#c7e9c0", // brand-200
+          10,
+          "#a1d99b", // brand-300
+          50,
+          "#74c476", // brand-400
+        ],
+        "circle-opacity": 0.95,
+      },
+    },
+    {
+      id: LAYER_CLUSTER_COUNT,
+      type: "symbol",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: {
+        visibility: "none",
+        "text-field": "{point_count_abbreviated}",
+        "text-size": 13,
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+      },
+      paint: {
+        "text-color": "#ffffff",
+      },
+    },
+    {
+      id: LAYER_UNCLUSTERED_POINTS,
+      type: "circle",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": "#006d2c",
+        "circle-radius": 10,
+        "circle-stroke-width": 3,
+        "circle-stroke-color": [
+          "match",
+          ["get", "status"],
+          "active",
+          "#41ab5d",
+          "maintenance",
+          "#f59e0b",
+          "#94a3b8",
+        ],
+      },
+    },
+    {
+      id: LAYER_UNCLUSTERED_LABELS,
+      type: "symbol",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      layout: {
+        visibility: "none",
+        "text-field": ["get", "name"],
+        "text-size": 11,
+        "text-offset": [0, 1.4],
+        "text-anchor": "top",
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        "text-optional": true,
+      },
+      paint: {
+        "text-color": "#00441b",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 2,
+      },
+    },
   ],
 };
-
-const SOURCE_ID = "clustered-entities-source";
-const LAYER_HEATMAP = "entities-heatmap-layer";
-const LAYER_HEATMAP_POINTS = "entities-heatmap-points-layer";
-const LAYER_CLUSTER_CIRCLES = "entities-cluster-circles-layer";
-const LAYER_CLUSTER_COUNT = "entities-cluster-count-layer";
-const LAYER_UNCLUSTERED_POINTS = "entities-unclustered-points-layer";
 
 function getCategoryIconSvg(type: string): string {
   if (type === "vehicle") {
@@ -204,7 +378,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: osmRasterStyle,
+      style: baseMapStyle,
       center: [104.7565, -2.9835], // Center in Palembang
       zoom: 12,
     });
@@ -218,224 +392,99 @@ export const MapView: React.FC<MapViewProps> = ({
       "top-right"
     );
 
-    map.on("load", () => {
-      // Add Clustered GeoJSON Source with immediate initial data
-      map.addSource(SOURCE_ID, {
-        type: "geojson",
-        data: buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current),
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
-      });
+    const onStyleReady = () => {
+      // Synchronize initial data into both sources
+      const geojson = buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current);
+      const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (clusterSource) {
+        clusterSource.setData(geojson);
+      }
+      const rawSource = map.getSource(RAW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (rawSource) {
+        rawSource.setData(geojson);
+      }
+      setMapLoaded(true);
+    };
 
-      // 1. Heatmap Layer
-      map.addLayer({
-        id: LAYER_HEATMAP,
-        type: "heatmap",
-        source: SOURCE_ID,
-        layout: {
-          visibility: "none",
-        },
-        paint: {
-          "heatmap-weight": 1,
-          "heatmap-intensity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            0,
-            1,
-            14,
-            3,
-          ],
-          "heatmap-color": [
-            "interpolate",
-            ["linear"],
-            ["heatmap-density"],
-            0,
-            "rgba(247, 252, 245, 0)",
-            0.2,
-            "rgba(199, 233, 192, 0.6)",
-            0.4,
-            "rgba(116, 196, 118, 0.8)",
-            0.6,
-            "rgba(35, 139, 69, 0.9)",
-            0.8,
-            "rgba(0, 109, 44, 0.95)",
-            1,
-            "rgba(0, 68, 27, 1)",
-          ],
-          "heatmap-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            0,
-            8,
-            9,
-            24,
-            15,
-            42,
-          ],
-          "heatmap-opacity": 0.85,
-        },
-      });
+    if (map.isStyleLoaded()) {
+      onStyleReady();
+    } else {
+      map.on("style.load", onStyleReady);
+      map.on("load", onStyleReady);
+    }
 
-      // 2. Heatmap Center Focal Points (at higher zooms)
-      map.addLayer({
-        id: LAYER_HEATMAP_POINTS,
-        type: "circle",
-        source: SOURCE_ID,
-        minzoom: 11,
-        layout: {
-          visibility: "none",
-        },
-        paint: {
-          "circle-radius": 4,
-          "circle-color": "#00441b",
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
-          "circle-opacity": 0.75,
-        },
-      });
+    // Cluster Expansion Click
+    map.on(
+      "click",
+      LAYER_CLUSTER_CIRCLES,
+      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+        if (!e.features || !e.features.length) return;
+        const clusterId = e.features[0].properties?.cluster_id;
+        if (clusterId == null) return;
 
-      // 3. Cluster Circles Layer (Green brand gradient sizing)
-      map.addLayer({
-        id: LAYER_CLUSTER_CIRCLES,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-          visibility: "none",
-        },
-        paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#41ab5d", // < 10 points: brand-500
-            10,
-            "#238b45", // 10 - 50 points: brand-600
-            50,
-            "#00441b", // > 50 points: brand-900
-          ],
-          "circle-radius": [
-            "step",
-            ["get", "point_count"],
-            18,
-            10,
-            24,
-            50,
-            30,
-          ],
-          "circle-stroke-width": 3,
-          "circle-stroke-color": [
-            "step",
-            ["get", "point_count"],
-            "#c7e9c0", // brand-200
-            10,
-            "#a1d99b", // brand-300
-            50,
-            "#74c476", // brand-400
-          ],
-          "circle-opacity": 0.95,
-        },
-      });
+        const source = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource;
+        source
+          .getClusterExpansionZoom(clusterId)
+          .then((zoom) => {
+            if (zoom == null) return;
+            const geom = e.features![0].geometry as Point;
+            map.easeTo({
+              center: geom.coordinates as [number, number],
+              zoom: zoom + 0.5,
+              duration: 500,
+            });
+          })
+          .catch(() => {});
+      }
+    );
 
-      // 4. Cluster Numerical Count Labels
-      map.addLayer({
-        id: LAYER_CLUSTER_COUNT,
-        type: "symbol",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-          visibility: "none",
-          "text-field": "{point_count_abbreviated}",
-          "text-size": 12,
-          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-        },
-        paint: {
-          "text-color": "#ffffff",
-        },
-      });
-
-      // 5. Unclustered Individual Points (in Clusters view mode)
-      map.addLayer({
-        id: LAYER_UNCLUSTERED_POINTS,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["!", ["has", "point_count"]],
-        layout: {
-          visibility: "none",
-        },
-        paint: {
-          "circle-color": "#006d2c",
-          "circle-radius": 8,
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": [
-            "match",
-            ["get", "status"],
-            "active",
-            "#41ab5d",
-            "maintenance",
-            "#f59e0b",
-            "#94a3b8",
-          ],
-        },
-      });
-
-      // Cluster Expansion Click
-      map.on(
-        "click",
-        LAYER_CLUSTER_CIRCLES,
-        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-          if (!e.features || !e.features.length) return;
-          const clusterId = e.features[0].properties?.cluster_id;
-          if (clusterId == null) return;
-
-          const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
-          source
-            .getClusterExpansionZoom(clusterId)
-            .then((zoom) => {
-              if (zoom == null) return;
-              const geom = e.features![0].geometry as Point;
-              map.easeTo({
-                center: geom.coordinates as [number, number],
-                zoom: zoom + 0.5,
-                duration: 500,
-              });
-            })
-            .catch(() => {});
-        }
-      );
-
-      // Unclustered Point Click (select entity)
-      map.on(
-        "click",
-        LAYER_UNCLUSTERED_POINTS,
-        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-          if (isPickingLocationRef.current) return;
-          if (e.features && e.features.length > 0) {
-            const id = e.features[0].properties?.id;
-            if (id) {
-              onSelectEntityRef.current(id);
-            }
+    // Unclustered Point Click (select entity in clusters mode)
+    map.on(
+      "click",
+      LAYER_UNCLUSTERED_POINTS,
+      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+        if (isPickingLocationRef.current) return;
+        if (e.features && e.features.length > 0) {
+          const id = e.features[0].properties?.id;
+          if (id) {
+            onSelectEntityRef.current(id);
           }
         }
-      );
+      }
+    );
 
-      // Cursors on clusters and unclustered points
-      map.on("mouseenter", LAYER_CLUSTER_CIRCLES, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", LAYER_CLUSTER_CIRCLES, () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", LAYER_UNCLUSTERED_POINTS, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", LAYER_UNCLUSTERED_POINTS, () => {
-        map.getCanvas().style.cursor = "";
-      });
+    // Heatmap Point Click (select entity in heatmap mode)
+    map.on(
+      "click",
+      LAYER_HEATMAP_POINTS,
+      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+        if (isPickingLocationRef.current) return;
+        if (e.features && e.features.length > 0) {
+          const id = e.features[0].properties?.id;
+          if (id) {
+            onSelectEntityRef.current(id);
+          }
+        }
+      }
+    );
 
-      setMapLoaded(true);
+    // Cursors on interactive layers
+    const interactiveLayers = [
+      LAYER_CLUSTER_CIRCLES,
+      LAYER_UNCLUSTERED_POINTS,
+      LAYER_HEATMAP_POINTS,
+    ];
+    interactiveLayers.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (!isPickingLocationRef.current) {
+          map.getCanvas().style.cursor = "pointer";
+        }
+      });
+      map.on("mouseleave", layerId, () => {
+        if (!isPickingLocationRef.current) {
+          map.getCanvas().style.cursor = "";
+        }
+      });
     });
 
     // Handle map click for location picking or background deselect
@@ -447,13 +496,13 @@ export const MapView: React.FC<MapViewProps> = ({
         return;
       }
 
-      // Check if clicking clusters or unclustered points before deselecting
+      // Check if clicking interactive layers before deselecting
       const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
         [e.point.x - 6, e.point.y - 6],
         [e.point.x + 6, e.point.y + 6],
       ];
       const features = map.queryRenderedFeatures(bbox, {
-        layers: [LAYER_CLUSTER_CIRCLES, LAYER_UNCLUSTERED_POINTS],
+        layers: interactiveLayers,
       });
       if (features.length === 0 && !isPickingLocationRef.current) {
         onSelectEntityRef.current(null);
@@ -461,7 +510,6 @@ export const MapView: React.FC<MapViewProps> = ({
     });
 
     mapRef.current = map;
-
     const currentMarkersMap = markersMapRef.current;
 
     return () => {
@@ -485,10 +533,17 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-    if (!source) return;
+    const geojsonData = buildGeoJSON(entities, selectedEntityId);
 
-    source.setData(buildGeoJSON(entities, selectedEntityId));
+    const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (clusterSource) {
+      clusterSource.setData(geojsonData);
+    }
+
+    const rawSource = map.getSource(RAW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (rawSource) {
+      rawSource.setData(geojsonData);
+    }
   }, [entities, selectedEntityId, mapLoaded]);
 
   // Manage layer visibility and pinpoint markers based on viewMode
@@ -506,6 +561,7 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_CLUSTER_CIRCLES, false);
       setLayerVis(LAYER_CLUSTER_COUNT, false);
       setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
+      setLayerVis(LAYER_UNCLUSTERED_LABELS, false);
       setLayerVis(LAYER_HEATMAP, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
@@ -549,6 +605,7 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_CLUSTER_CIRCLES, true);
       setLayerVis(LAYER_CLUSTER_COUNT, true);
       setLayerVis(LAYER_UNCLUSTERED_POINTS, true);
+      setLayerVis(LAYER_UNCLUSTERED_LABELS, true);
       setLayerVis(LAYER_HEATMAP, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
@@ -562,6 +619,7 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_CLUSTER_CIRCLES, false);
       setLayerVis(LAYER_CLUSTER_COUNT, false);
       setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
+      setLayerVis(LAYER_UNCLUSTERED_LABELS, false);
       setLayerVis(LAYER_HEATMAP, true);
       setLayerVis(LAYER_HEATMAP_POINTS, true);
 

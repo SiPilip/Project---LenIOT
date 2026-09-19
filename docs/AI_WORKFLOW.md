@@ -73,6 +73,8 @@
 | 2026-09-19 | Custom Brand Mark Points & Legend | Desain khusus mark point dengan palet hijau kita (#006d2c -> #238b45), inner disc #f7fcf5, glif kategori (Vehicle, IoT, Facility, Other), manik status aktif/maint/inaktif, ground contact shadow, selection halo, serta mini legend peta | Verifikasi visual pin kustom pada peta MapLibre GL JS |
 | 2026-09-19 | React-Icons Custom Pinpoint Markers | Pemasangan library react-icons (FaTruck, FaWifi, FaWarehouse, FaLocationDot), perancangan pinpoint marker DOM teardrop interaktif dengan border putih dan manik status, serta animasi selection ping | Konfirmasi ketiadaan pinpoint di peta teratasi 100% dan ikon tampil tajam |
 | 2026-09-19 | Spatial Superclustering & Density Heatmap (/antislop-ui) | Implementasi Superclustering spasial native MapLibre GL dengan animasi click-to-expand zoom, Density Heatmap gradasi warna hijau brand (5-stop interpolation), Anti-Slop view mode switcher (Pins, Clusters, Heatmap), dynamic mode-aware legend, penggantian seluruh emoticon dengan react-icons/fa6, dan harmonisasi total dengan palet warna ColorBrewer hijau | Uji interaktivitas Supercluster, layer heatmap, dan kontrol view mode bebas emoji |
+| 2026-09-19 | Fix: Robust Base Style Map Rendering | Perbaikan tampilan klaster dan heatmap yang kosong: mendefinisikan sumber GeoJSON dan seluruh layer WebGL langsung pada baseMapStyle inisial (tanpa menunggu callback async raster load yang tertahan), memisahkan source heatmap unclustered agar tidak terpotong oleh Supercluster, meningkatkan sensitivitas radius dan intensitas densitas, serta menambahkan titik fokus dan label nama | Uji coba langsung pergantian mode Pinpoints, Clusters, dan Heatmap |
+
 
 
 
