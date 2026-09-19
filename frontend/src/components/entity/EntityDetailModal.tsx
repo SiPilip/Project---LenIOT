@@ -52,39 +52,39 @@ export const EntityDetailModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md w-full bg-white border border-brand-200 shadow-2xl p-4 sm:p-5 rounded-2xl gap-3">
-        {/* Compact Header: Badges + Title */}
-        <DialogHeader className="pr-6 space-y-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            <TypeBadge type={entity.type} />
-            <StatusBadge status={entity.status} />
+        {/* Compact Header: Badges + Coordinates + Title */}
+        <DialogHeader className="pr-6 space-y-1">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <TypeBadge type={entity.type} />
+              <StatusBadge status={entity.status} />
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-brand-800 bg-brand-50 border border-brand-200/90 px-2 py-0.5 rounded font-mono font-medium">
+              <MapPin className="w-3 h-3 text-brand-600 shrink-0" />
+              <span>
+                {entity.latitude.toFixed(5)}, {entity.longitude.toFixed(5)}
+              </span>
+            </div>
           </div>
-          <DialogTitle className="text-lg font-bold text-zinc-900 tracking-tight">
+          <DialogTitle className="text-base font-bold text-zinc-900 tracking-tight pt-0.5">
             {entity.name}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Geospatial entity details for {entity.name}
           </DialogDescription>
-
-          {/* Coordinates Bar */}
-          <div className="flex items-center gap-1.5 text-xs text-brand-800 bg-brand-50 border border-brand-200/90 px-2.5 py-1 rounded-md font-mono font-medium mt-2 w-fit">
-            <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-            <span>
-              {entity.latitude.toFixed(6)}, {entity.longitude.toFixed(6)}
-            </span>
-          </div>
         </DialogHeader>
 
         {/* Description (if provided) */}
         {entity.description ? (
-          <div className="text-xs text-zinc-700 bg-zinc-50 border border-zinc-200/80 rounded-lg p-2.5 leading-relaxed">
+          <div className="text-xs text-zinc-700 bg-zinc-50 border border-zinc-200/80 rounded-lg p-2 leading-relaxed">
             {entity.description}
           </div>
         ) : (
-          <p className="text-xs text-zinc-400 italic">No description provided.</p>
+          <p className="text-[11px] text-zinc-400 italic">No description provided.</p>
         )}
 
         {/* Dynamic Attributes Section */}
-        <div className="bg-brand-50/40 border border-brand-100 rounded-lg p-3">
+        <div className="bg-brand-50/30 border border-brand-100/90 rounded-lg p-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-900">
               <Code2 className="w-3.5 h-3.5 text-brand-600 shrink-0" />
@@ -107,17 +107,17 @@ export const EntityDetailModal = ({
           </div>
 
           {attributeEntries.length === 0 ? (
-            <p className="text-xs text-zinc-400 italic mt-1.5">No custom attributes defined.</p>
+            <p className="text-[11px] text-zinc-400 italic mt-1">No custom attributes defined.</p>
           ) : showRawJson ? (
-            <pre className="mt-2 p-2.5 bg-zinc-900 text-emerald-400 rounded-md font-mono text-[11px] overflow-x-auto max-h-36 leading-relaxed">
+            <pre className="mt-2 p-2 bg-white border border-brand-200/80 text-zinc-800 rounded font-mono text-[11px] overflow-x-auto max-h-32 leading-relaxed">
               {JSON.stringify(attributes, null, 2)}
             </pre>
           ) : (
-            <div className="grid grid-cols-2 gap-1.5 mt-2 max-h-36 overflow-y-auto pr-0.5">
+            <div className="grid grid-cols-2 gap-1.5 mt-2 max-h-32 overflow-y-auto pr-0.5">
               {attributeEntries.map(([key, val]) => (
                 <div
                   key={key}
-                  className="p-1.5 px-2 bg-white rounded border border-brand-100 text-xs shadow-2xs"
+                  className="p-1 px-2 bg-white rounded border border-brand-100/80 text-xs shadow-2xs"
                 >
                   <span className="text-zinc-500 block text-[10px] font-mono font-medium truncate capitalize">
                     {key.replace(/_/g, " ")}

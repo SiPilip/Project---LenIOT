@@ -199,29 +199,34 @@ export const EntityFormModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md w-full bg-white border border-brand-200 shadow-2xl p-4 sm:p-5 rounded-2xl gap-3 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pr-6 space-y-0.5">
-          <DialogTitle className="text-lg font-bold text-zinc-900 tracking-tight">
-            {isEdit ? "Edit Entity" : "Add New Entity"}
-          </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-500">
+      <DialogContent className="sm:max-w-115 w-full bg-white border border-brand-200/90 shadow-xl p-4 sm:p-5 rounded-2xl gap-2.5 max-h-[92vh] overflow-y-auto">
+        <DialogHeader className="pr-6 space-y-0.5 pb-2 border-b border-zinc-100">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-base font-bold text-zinc-900 tracking-tight">
+              {isEdit ? "Edit Entity" : "Add New Entity"}
+            </DialogTitle>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200 uppercase tracking-wider">
+              {isEdit ? "Edit" : "New"}
+            </span>
+          </div>
+          <DialogDescription className="text-[11px] text-zinc-500">
             {isEdit
-              ? "Update entity details, coordinates, and dynamic properties."
-              : "Register a new geo-located entity into the geospatial system."}
+              ? "Update coordinates, operational status, and attributes."
+              : "Specify location, classification, and metadata properties."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-3 mt-1">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-2.5 mt-1">
           {serverError && (
-            <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs text-red-700">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-2 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-xs text-red-700">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>{serverError}</span>
             </div>
           )}
 
           {/* Name Field */}
           <div className="space-y-1">
-            <Label htmlFor="entity-name" className="text-zinc-800 text-xs font-medium">
+            <Label htmlFor="entity-name" className="text-zinc-700 text-[11px] font-medium">
               Entity Name (min 3 chars) <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -229,23 +234,23 @@ export const EntityFormModal = ({
               type="text"
               placeholder="e.g. Logistics Truck Alpha-01"
               {...register("name")}
-              className="h-8.5 text-xs"
+              className="h-8 text-xs"
             />
             {errors.name && (
-              <p className="text-[11px] text-red-600 font-medium">{errors.name.message}</p>
+              <p className="text-[10px] text-red-600 font-medium">{errors.name.message}</p>
             )}
           </div>
 
           {/* Type & Status */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="entity-type" className="text-zinc-800 text-xs font-medium">
+              <Label htmlFor="entity-type" className="text-zinc-700 text-[11px] font-medium">
                 Type / Category <span className="text-red-500">*</span>
               </Label>
               <select
                 id="entity-type"
                 {...register("type")}
-                className="flex h-8.5 w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600"
+                className="flex h-8 w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-600 focus-visible:border-brand-600 cursor-pointer"
               >
                 <option value="vehicle">Vehicle</option>
                 <option value="iot_device">IoT Device</option>
@@ -253,25 +258,25 @@ export const EntityFormModal = ({
                 <option value="other">Other</option>
               </select>
               {errors.type && (
-                <p className="text-[11px] text-red-600 font-medium">{errors.type.message}</p>
+                <p className="text-[10px] text-red-600 font-medium">{errors.type.message}</p>
               )}
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="entity-status" className="text-zinc-800 text-xs font-medium">
+              <Label htmlFor="entity-status" className="text-zinc-700 text-[11px] font-medium">
                 Status <span className="text-red-500">*</span>
               </Label>
               <select
                 id="entity-status"
                 {...register("status")}
-                className="flex h-8.5 w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-900 shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600"
+                className="flex h-8 w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-600 focus-visible:border-brand-600 cursor-pointer"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
                 <option value="maintenance">Maintenance</option>
               </select>
               {errors.status && (
-                <p className="text-[11px] text-red-600 font-medium">{errors.status.message}</p>
+                <p className="text-[10px] text-red-600 font-medium">{errors.status.message}</p>
               )}
             </div>
           </div>
@@ -279,29 +284,29 @@ export const EntityFormModal = ({
           {/* Coordinates */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-zinc-800 text-xs font-medium">
+              <Label className="text-zinc-700 text-[11px] font-medium">
                 Geographic Coordinates <span className="text-red-500">*</span>
               </Label>
               <button
                 type="button"
                 onClick={onStartPickLocation}
-                className="text-[11px] text-brand-700 hover:text-brand-900 font-medium flex items-center gap-1 cursor-pointer"
+                className="text-[10px] font-semibold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <MapPin className="w-3 h-3 text-brand-600" />
                 Pick on Map
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <Input
                   type="number"
                   step="any"
                   placeholder="Latitude (-90..90)"
                   {...register("latitude", { valueAsNumber: true })}
-                  className="h-8.5 text-xs font-mono"
+                  className="h-8 text-xs font-mono"
                 />
                 {errors.latitude && (
-                  <p className="mt-0.5 text-[11px] text-red-600 font-medium">{errors.latitude.message}</p>
+                  <p className="mt-0.5 text-[10px] text-red-600 font-medium">{errors.latitude.message}</p>
                 )}
               </div>
               <div>
@@ -310,10 +315,10 @@ export const EntityFormModal = ({
                   step="any"
                   placeholder="Longitude (-180..180)"
                   {...register("longitude", { valueAsNumber: true })}
-                  className="h-8.5 text-xs font-mono"
+                  className="h-8 text-xs font-mono"
                 />
                 {errors.longitude && (
-                  <p className="mt-0.5 text-[11px] text-red-600 font-medium">{errors.longitude.message}</p>
+                  <p className="mt-0.5 text-[10px] text-red-600 font-medium">{errors.longitude.message}</p>
                 )}
               </div>
             </div>
@@ -321,25 +326,25 @@ export const EntityFormModal = ({
 
           {/* Description */}
           <div className="space-y-1">
-            <Label htmlFor="entity-desc" className="text-zinc-800 text-xs font-medium">
-              Description (Optional)
+            <Label htmlFor="entity-desc" className="text-zinc-700 text-[11px] font-medium">
+              Description <span className="text-zinc-400 font-normal">(Optional)</span>
             </Label>
             <Textarea
               id="entity-desc"
               rows={2}
-              placeholder="Operational notes, specifications..."
+              placeholder="Operational notes, specifications, or identifier tags..."
               {...register("description")}
-              className="resize-none text-xs p-2 min-h-14"
+              className="resize-none text-xs p-1.5 min-h-11 h-11"
             />
             {errors.description && (
-              <p className="text-[11px] text-red-600 font-medium">{errors.description.message}</p>
+              <p className="text-[10px] text-red-600 font-medium">{errors.description.message}</p>
             )}
           </div>
 
           {/* Dynamic Attributes JSON Editor */}
-          <div className="space-y-1.5 p-2.5 bg-brand-50/40 border border-brand-100 rounded-lg">
+          <div className="space-y-1.5 p-2 bg-brand-50/30 border border-brand-100/90 rounded-lg">
             <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-900">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-brand-900">
                 <Code2 className="w-3.5 h-3.5 text-brand-600" />
                 <span>Attributes (JSON)</span>
               </div>
@@ -365,6 +370,13 @@ export const EntityFormModal = ({
                 >
                   Facility
                 </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("clear")}
+                  className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-white border border-zinc-200 text-zinc-500 hover:bg-zinc-50 cursor-pointer transition-colors"
+                >
+                  Clear
+                </button>
               </div>
             </div>
 
@@ -374,15 +386,17 @@ export const EntityFormModal = ({
                 setAttributesJson(e.target.value);
                 setJsonError(null);
               }}
-              rows={3}
-              className="w-full font-mono text-xs p-2 rounded-md border border-zinc-200 bg-white text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:border-brand-600 resize-y"
+              rows={2}
+              className="w-full font-mono text-[11px] p-1.5 rounded border border-zinc-200 bg-white text-zinc-900 shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-600 focus-visible:border-brand-600 h-16 resize-none leading-relaxed"
               placeholder='{\n  "battery_level": 94\n}'
             />
-            {jsonError && (
-              <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
+            {jsonError ? (
+              <p className="text-[10px] text-red-600 font-medium flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" />
                 <span>{jsonError}</span>
               </p>
+            ) : (
+              <p className="text-[10px] text-zinc-400 font-mono">Valid JSON key-value format</p>
             )}
           </div>
 
@@ -392,7 +406,7 @@ export const EntityFormModal = ({
               variant="outline"
               size="sm"
               onClick={handleClose}
-              className="h-8.5 px-3 text-xs border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+              className="h-8 px-3 text-xs border-zinc-200 text-zinc-700 hover:bg-zinc-50"
             >
               Cancel
             </Button>
@@ -401,7 +415,7 @@ export const EntityFormModal = ({
               variant="default"
               size="sm"
               disabled={isLoading}
-              className="h-8.5 px-3.5 text-xs bg-brand-600 hover:bg-brand-700 text-white shadow-xs font-medium"
+              className="h-8 px-3.5 text-xs bg-brand-600 hover:bg-brand-700 text-white shadow-xs font-medium"
             >
               {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
               {isEdit ? "Save Changes" : "Create Entity"}
