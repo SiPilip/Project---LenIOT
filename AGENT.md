@@ -23,6 +23,7 @@ Run each command from the directory shown.
 ```powershell
 # Backend (run in backend/)
 go run ./cmd/api          # dev server on :8080
+go run ./cmd/seed         # seed 46 Java geospatial entities
 gofmt -l .                # must print nothing
 go vet ./...
 go test ./...             # add -race only if CGO/gcc is available

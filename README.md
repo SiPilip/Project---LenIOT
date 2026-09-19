@@ -36,9 +36,14 @@ cd backend
 # Salin file konfigurasi environment
 Copy-Item .env.example .env
 
+# (Sangat Disarankan) Seed 46 data entitas geospasial di seluruh pulau Jawa
+go run ./cmd/seed
+
 # Jalankan server API
 go run ./cmd/api
 ```
+
+> **Catatan Seeder**: Perintah `go run ./cmd/seed` akan mengisi database dengan 46 entitas realistis di seluruh Pulau Jawa (kendaraan logistik, sensor IoT cuaca/kualitas udara, stasiun cuaca, gardu induk, dan fasilitas publik) untuk keperluan pengujian visual peta (Pinpoints, Clusters, dan Heatmap).
 
 > API akan aktif di `http://localhost:8080`.
 > Health check dapat diuji melalui `http://localhost:8080/health`.
