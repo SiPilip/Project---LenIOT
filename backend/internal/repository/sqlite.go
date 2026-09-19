@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS entities (
     type TEXT NOT NULL,
     status TEXT NOT NULL,
     description TEXT,
+    attributes TEXT,
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
     created_at TEXT NOT NULL,
@@ -33,6 +35,15 @@ CREATE TABLE IF NOT EXISTS entities (
 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
 CREATE INDEX IF NOT EXISTS idx_entities_status ON entities(status);
 `
+
+func migrateDB(db *sql.DB) error {
+	if _, err := db.Exec(initSchemaSQL); err != nil {
+		return fmt.Errorf("failed to run schema migration: %w", err)
+	}
+	// Gracefully ensure attributes column exists if older schema is loaded
+	_, _ = db.Exec("ALTER TABLE entities ADD COLUMN attributes TEXT;")
+	return nil
+}
 
 // NewSQLiteRepository initializes SQLite database connection and runs migrations.
 func NewSQLiteRepository(dbPath string) (EntityRepository, error) {
@@ -54,9 +65,9 @@ func NewSQLiteRepository(dbPath string) (EntityRepository, error) {
 		return nil, fmt.Errorf("failed to set sqlite pragma: %w", err)
 	}
 
-	if _, err := db.Exec(initSchemaSQL); err != nil {
+	if err := migrateDB(db); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("failed to run schema migration: %w", err)
+		return nil, err
 	}
 
 	return &sqliteEntityRepository{db: db}, nil
@@ -64,23 +75,29 @@ func NewSQLiteRepository(dbPath string) (EntityRepository, error) {
 
 // NewSQLiteRepositoryFromDB wraps an existing sql.DB for testing.
 func NewSQLiteRepositoryFromDB(db *sql.DB) (EntityRepository, error) {
-	if _, err := db.Exec(initSchemaSQL); err != nil {
-		return nil, fmt.Errorf("failed to run schema migration: %w", err)
+	if err := migrateDB(db); err != nil {
+		return nil, err
 	}
 	return &sqliteEntityRepository{db: db}, nil
 }
 
 func (r *sqliteEntityRepository) Create(ctx context.Context, e *domain.Entity) error {
+	attributesJSON, err := json.Marshal(e.Attributes)
+	if err != nil || e.Attributes == nil {
+		attributesJSON = []byte("{}")
+	}
+
 	query := `
-		INSERT INTO entities (id, name, type, status, description, latitude, longitude, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO entities (id, name, type, status, description, attributes, latitude, longitude, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		e.ID,
 		e.Name,
 		string(e.Type),
 		string(e.Status),
 		e.Description,
+		string(attributesJSON),
 		e.Latitude,
 		e.Longitude,
 		e.CreatedAt.Format(time.RFC3339),
@@ -94,19 +111,20 @@ func (r *sqliteEntityRepository) Create(ctx context.Context, e *domain.Entity) e
 
 func (r *sqliteEntityRepository) GetByID(ctx context.Context, id string) (*domain.Entity, error) {
 	query := `
-		SELECT id, name, type, status, description, latitude, longitude, created_at, updated_at
+		SELECT id, name, type, status, description, attributes, latitude, longitude, created_at, updated_at
 		FROM entities
 		WHERE id = ?
 	`
 	row := r.db.QueryRowContext(ctx, query, id)
 
 	var (
-		e           domain.Entity
-		eType       string
-		eStatus     string
-		description sql.NullString
-		createdAt   string
-		updatedAt   string
+		e             domain.Entity
+		eType         string
+		eStatus       string
+		description   sql.NullString
+		rawAttributes sql.NullString
+		createdAt     string
+		updatedAt     string
 	)
 
 	err := row.Scan(
@@ -115,6 +133,7 @@ func (r *sqliteEntityRepository) GetByID(ctx context.Context, id string) (*domai
 		&eType,
 		&eStatus,
 		&description,
+		&rawAttributes,
 		&e.Latitude,
 		&e.Longitude,
 		&createdAt,
@@ -133,6 +152,11 @@ func (r *sqliteEntityRepository) GetByID(ctx context.Context, id string) (*domai
 		e.Description = description.String
 	}
 
+	e.Attributes = make(map[string]interface{})
+	if rawAttributes.Valid && rawAttributes.String != "" {
+		_ = json.Unmarshal([]byte(rawAttributes.String), &e.Attributes)
+	}
+
 	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
 		e.CreatedAt = t
 	}
@@ -145,7 +169,7 @@ func (r *sqliteEntityRepository) GetByID(ctx context.Context, id string) (*domai
 
 func (r *sqliteEntityRepository) List(ctx context.Context) ([]*domain.Entity, error) {
 	query := `
-		SELECT id, name, type, status, description, latitude, longitude, created_at, updated_at
+		SELECT id, name, type, status, description, attributes, latitude, longitude, created_at, updated_at
 		FROM entities
 		ORDER BY created_at DESC
 	`
@@ -158,12 +182,13 @@ func (r *sqliteEntityRepository) List(ctx context.Context) ([]*domain.Entity, er
 	entities := make([]*domain.Entity, 0)
 	for rows.Next() {
 		var (
-			e           domain.Entity
-			eType       string
-			eStatus     string
-			description sql.NullString
-			createdAt   string
-			updatedAt   string
+			e             domain.Entity
+			eType         string
+			eStatus       string
+			description   sql.NullString
+			rawAttributes sql.NullString
+			createdAt     string
+			updatedAt     string
 		)
 
 		if err := rows.Scan(
@@ -172,6 +197,7 @@ func (r *sqliteEntityRepository) List(ctx context.Context) ([]*domain.Entity, er
 			&eType,
 			&eStatus,
 			&description,
+			&rawAttributes,
 			&e.Latitude,
 			&e.Longitude,
 			&createdAt,
@@ -185,6 +211,12 @@ func (r *sqliteEntityRepository) List(ctx context.Context) ([]*domain.Entity, er
 		if description.Valid {
 			e.Description = description.String
 		}
+
+		e.Attributes = make(map[string]interface{})
+		if rawAttributes.Valid && rawAttributes.String != "" {
+			_ = json.Unmarshal([]byte(rawAttributes.String), &e.Attributes)
+		}
+
 		if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
 			e.CreatedAt = t
 		}
@@ -203,9 +235,14 @@ func (r *sqliteEntityRepository) List(ctx context.Context) ([]*domain.Entity, er
 }
 
 func (r *sqliteEntityRepository) Update(ctx context.Context, e *domain.Entity) error {
+	attributesJSON, err := json.Marshal(e.Attributes)
+	if err != nil || e.Attributes == nil {
+		attributesJSON = []byte("{}")
+	}
+
 	query := `
 		UPDATE entities
-		SET name = ?, type = ?, status = ?, description = ?, latitude = ?, longitude = ?, updated_at = ?
+		SET name = ?, type = ?, status = ?, description = ?, attributes = ?, latitude = ?, longitude = ?, updated_at = ?
 		WHERE id = ?
 	`
 	res, err := r.db.ExecContext(ctx, query,
@@ -213,11 +250,13 @@ func (r *sqliteEntityRepository) Update(ctx context.Context, e *domain.Entity) e
 		string(e.Type),
 		string(e.Status),
 		e.Description,
+		string(attributesJSON),
 		e.Latitude,
 		e.Longitude,
 		e.UpdatedAt.Format(time.RFC3339),
 		e.ID,
 	)
+
 	if err != nil {
 		return fmt.Errorf("failed to update entity: %w", err)
 	}

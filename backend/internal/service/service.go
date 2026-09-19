@@ -36,6 +36,8 @@ func NewEntityService(repo repository.EntityRepository, v *validation.Validator)
 
 func (s *entityService) Create(ctx context.Context, input domain.CreateEntityInput) (*domain.Entity, []validation.FieldErrorDetail, error) {
 	input.Name = strings.TrimSpace(input.Name)
+	input.Type = strings.ToLower(strings.TrimSpace(input.Type))
+	input.Status = strings.ToLower(strings.TrimSpace(input.Status))
 
 	if errs := s.validator.ValidateStruct(input); len(errs) > 0 {
 		return nil, errs, domain.ErrValidationFail
@@ -47,12 +49,18 @@ func (s *entityService) Create(ctx context.Context, input domain.CreateEntityInp
 		desc = strings.TrimSpace(*input.Description)
 	}
 
+	attrs := input.Attributes
+	if attrs == nil {
+		attrs = make(map[string]interface{})
+	}
+
 	entity := &domain.Entity{
 		ID:          uuid.NewString(),
 		Name:        input.Name,
 		Type:        domain.EntityType(input.Type),
 		Status:      domain.EntityStatus(input.Status),
 		Description: desc,
+		Attributes:  attrs,
 		Latitude:    input.Latitude,
 		Longitude:   input.Longitude,
 		CreatedAt:   now,
@@ -83,6 +91,8 @@ func (s *entityService) Update(ctx context.Context, id string, input domain.Upda
 	}
 
 	input.Name = strings.TrimSpace(input.Name)
+	input.Type = strings.ToLower(strings.TrimSpace(input.Type))
+	input.Status = strings.ToLower(strings.TrimSpace(input.Status))
 
 	if errs := s.validator.ValidateStruct(input); len(errs) > 0 {
 		return nil, errs, domain.ErrValidationFail
@@ -96,6 +106,12 @@ func (s *entityService) Update(ctx context.Context, id string, input domain.Upda
 	desc := ""
 	if input.Description != nil {
 		desc = strings.TrimSpace(*input.Description)
+	}
+
+	if input.Attributes != nil {
+		existing.Attributes = input.Attributes
+	} else if existing.Attributes == nil {
+		existing.Attributes = make(map[string]interface{})
 	}
 
 	existing.Name = input.Name

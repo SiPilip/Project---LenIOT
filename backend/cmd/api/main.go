@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -24,6 +25,11 @@ func main() {
 	repo, err := repository.NewSQLiteRepository(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize SQLite repository: %v", err)
+	}
+
+	// Auto-seed sample entities if database is fresh
+	if err := repo.SeedInitialDataIfEmpty(context.Background()); err != nil {
+		log.Printf("Notice: auto-seed completed or skipped: %v", err)
 	}
 
 	v := validation.New()

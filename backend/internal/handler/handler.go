@@ -50,7 +50,7 @@ func (h *EntityHandler) List(c *gin.Context) {
 		respondError(c, err, nil)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": entities})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": entities})
 }
 
 // Create handles creating a new entity.
@@ -58,6 +58,7 @@ func (h *EntityHandler) Create(c *gin.Context) {
 	var input domain.CreateEntityInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, validation.ErrorResponse{
+			Success: false,
 			Error: validation.ErrorPayload{
 				Code:    "BAD_REQUEST",
 				Message: "Malformed JSON request body",
@@ -72,7 +73,7 @@ func (h *EntityHandler) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": entity})
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": entity})
 }
 
 // Get handles retrieving a single entity by ID.
@@ -84,7 +85,7 @@ func (h *EntityHandler) Get(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": entity})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": entity})
 }
 
 // Update handles updating an existing entity by ID.
@@ -93,6 +94,7 @@ func (h *EntityHandler) Update(c *gin.Context) {
 	var input domain.UpdateEntityInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, validation.ErrorResponse{
+			Success: false,
 			Error: validation.ErrorPayload{
 				Code:    "BAD_REQUEST",
 				Message: "Malformed JSON request body",
@@ -107,7 +109,7 @@ func (h *EntityHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": entity})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": entity})
 }
 
 // Delete handles deleting an entity by ID.
@@ -124,6 +126,7 @@ func (h *EntityHandler) Delete(c *gin.Context) {
 func respondError(c *gin.Context, err error, valErrors []validation.FieldErrorDetail) {
 	if errors.Is(err, domain.ErrValidationFail) || len(valErrors) > 0 {
 		c.JSON(http.StatusUnprocessableEntity, validation.ErrorResponse{
+			Success: false,
 			Error: validation.ErrorPayload{
 				Code:    "VALIDATION_ERROR",
 				Message: "Invalid input",
@@ -135,6 +138,7 @@ func respondError(c *gin.Context, err error, valErrors []validation.FieldErrorDe
 
 	if errors.Is(err, domain.ErrNotFound) {
 		c.JSON(http.StatusNotFound, validation.ErrorResponse{
+			Success: false,
 			Error: validation.ErrorPayload{
 				Code:    "NOT_FOUND",
 				Message: "Entity not found",
@@ -145,6 +149,7 @@ func respondError(c *gin.Context, err error, valErrors []validation.FieldErrorDe
 
 	if errors.Is(err, domain.ErrInvalidID) {
 		c.JSON(http.StatusBadRequest, validation.ErrorResponse{
+			Success: false,
 			Error: validation.ErrorPayload{
 				Code:    "BAD_REQUEST",
 				Message: "Invalid entity ID format (must be UUID)",
@@ -154,6 +159,7 @@ func respondError(c *gin.Context, err error, valErrors []validation.FieldErrorDe
 	}
 
 	c.JSON(http.StatusInternalServerError, validation.ErrorResponse{
+		Success: false,
 		Error: validation.ErrorPayload{
 			Code:    "INTERNAL_SERVER_ERROR",
 			Message: "An unexpected error occurred",

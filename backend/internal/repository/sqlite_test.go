@@ -44,10 +44,14 @@ func TestSQLiteRepository_CRUD(t *testing.T) {
 		Type:        domain.EntityTypeIoTDevice,
 		Status:      domain.EntityStatusActive,
 		Description: "Monitoring gate entrance",
-		Latitude:    -6.2088,
-		Longitude:   106.8456,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		Attributes: map[string]interface{}{
+			"firmware": "v1.0.0",
+			"battery":  float64(98),
+		},
+		Latitude:  -6.2088,
+		Longitude: 106.8456,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	// 1. Create
@@ -62,6 +66,9 @@ func TestSQLiteRepository_CRUD(t *testing.T) {
 	}
 	if got.Name != entity.Name || got.Type != entity.Type || got.Latitude != entity.Latitude {
 		t.Fatalf("retrieved entity does not match created entity: got %+v, want %+v", got, entity)
+	}
+	if got.Attributes == nil || got.Attributes["firmware"] != "v1.0.0" {
+		t.Fatalf("expected attributes to persist, got: %+v", got.Attributes)
 	}
 
 	// 3. List

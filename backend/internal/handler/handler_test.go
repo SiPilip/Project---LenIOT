@@ -112,18 +112,23 @@ func TestEntityLifecycle(t *testing.T) {
 	}
 
 	var createResp struct {
-		Data struct {
-			ID          string  `json:"id"`
-			Name        string  `json:"name"`
-			Type        string  `json:"type"`
-			Status      string  `json:"status"`
-			Description string  `json:"description"`
-			Latitude    float64 `json:"latitude"`
-			Longitude   float64 `json:"longitude"`
+		Success bool `json:"success"`
+		Data    struct {
+			ID          string                 `json:"id"`
+			Name        string                 `json:"name"`
+			Type        string                 `json:"type"`
+			Status      string                 `json:"status"`
+			Description string                 `json:"description"`
+			Attributes  map[string]interface{} `json:"attributes"`
+			Latitude    float64                `json:"latitude"`
+			Longitude   float64                `json:"longitude"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &createResp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !createResp.Success {
+		t.Fatalf("expected createResp.Success to be true")
 	}
 	entityID := createResp.Data.ID
 	if entityID == "" {

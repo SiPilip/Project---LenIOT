@@ -20,14 +20,26 @@ func TestValidationRules(t *testing.T) {
 		errField    string
 	}{
 		{
-			name: "Valid input",
+			name: "Valid input with lowercase enums",
 			input: domain.CreateEntityInput{
 				Name:        "Test IoT Sensor",
 				Type:        "iot_device",
 				Status:      "active",
 				Description: &descValid,
+				Attributes:  map[string]interface{}{"battery": 95},
 				Latitude:    -2.98,
 				Longitude:   104.75,
+			},
+			expectValid: true,
+		},
+		{
+			name: "Valid input with uppercase enums",
+			input: domain.CreateEntityInput{
+				Name:      "Test Vehicle Cruiser",
+				Type:      "VEHICLE",
+				Status:    "ACTIVE",
+				Latitude:  -2.98,
+				Longitude: 104.75,
 			},
 			expectValid: true,
 		},
@@ -35,6 +47,18 @@ func TestValidationRules(t *testing.T) {
 			name: "Missing name",
 			input: domain.CreateEntityInput{
 				Name:      "",
+				Type:      "vehicle",
+				Status:    "active",
+				Latitude:  10.0,
+				Longitude: 20.0,
+			},
+			expectValid: false,
+			errField:    "name",
+		},
+		{
+			name: "Name too short (< 3 characters)",
+			input: domain.CreateEntityInput{
+				Name:      "AB",
 				Type:      "vehicle",
 				Status:    "active",
 				Latitude:  10.0,

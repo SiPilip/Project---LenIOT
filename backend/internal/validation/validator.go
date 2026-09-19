@@ -15,7 +15,8 @@ type FieldErrorDetail struct {
 
 // ErrorResponse represents the top-level error response envelope.
 type ErrorResponse struct {
-	Error ErrorPayload `json:"error"`
+	Success bool         `json:"success"`
+	Error   ErrorPayload `json:"error"`
 }
 
 // ErrorPayload holds code, message, and field-level details.
