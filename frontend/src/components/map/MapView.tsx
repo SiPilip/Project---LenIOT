@@ -5,7 +5,6 @@ import type { Point, FeatureCollection } from "geojson";
 
 // Ensure MapLibre Web Worker is bundled correctly by Vite for GeoJSON clustering and heatmaps
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
-import { renderToStaticMarkup } from "react-dom/server";
 import {
   FaLocationDot,
   FaCircleNodes,
@@ -19,6 +18,7 @@ import type { Entity } from "../../types/entity";
 import { TypeBadge, StatusBadge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
+import { createPinpointElement } from "./PinpointMarker";
 
 export type MapViewMode = "pinpoints" | "clusters" | "heatmap";
 
@@ -282,178 +282,22 @@ const baseMapStyle: maplibregl.StyleSpecification = {
         "circle-stroke-color": "#238b45",
       },
     },
-    // 6. Unclustered Retina Pins with Category Icons, Status Dot & Labels
+    // 6. Unclustered Invisible Anchor Layer (used for spatial query of unclustered features in clusters mode)
     {
       id: LAYER_UNCLUSTERED_PINS,
-      type: "symbol",
+      type: "circle",
       source: CLUSTER_SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       layout: {
-        visibility: "none",
-        "icon-image": [
-          "concat",
-          "pin-",
-          ["get", "type"],
-          "-",
-          ["get", "status"],
-        ],
-        "icon-size": 1.0,
-        "icon-anchor": "bottom",
-        "icon-allow-overlap": true,
-        "icon-ignore-placement": true,
-        "text-field": ["get", "name"],
-        "text-size": 11,
-        "text-offset": [0, 0.45],
-        "text-anchor": "top",
-        "text-font": ["Noto Sans Bold"],
-        "text-optional": true,
+        visibility: "visible",
       },
       paint: {
-        "text-color": "#00441b",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 3,
+        "circle-radius": 1,
+        "circle-opacity": 0,
       },
     },
   ],
 };
-
-const PIN_TYPES = ["vehicle", "iot_device", "facility", "other"] as const;
-const PIN_STATUSES = ["active", "maintenance", "inactive"] as const;
-
-function getCategoryIconSvg(type: string, size = 14): string {
-  if (type === "vehicle") {
-    return renderToStaticMarkup(<FaTruck size={size} color="#00441b" />);
-  }
-  if (type === "iot_device") {
-    return renderToStaticMarkup(<FaWifi size={size} color="#00441b" />);
-  }
-  if (type === "facility") {
-    return renderToStaticMarkup(<FaWarehouse size={size} color="#00441b" />);
-  }
-  return renderToStaticMarkup(<FaLocationDot size={size} color="#00441b" />);
-}
-
-function getStatusBadgeClass(status: string): string {
-  if (status === "active") return "bg-emerald-500";
-  if (status === "maintenance") return "bg-amber-500";
-  return "bg-slate-400";
-}
-
-function getStatusColorHex(status: string): string {
-  if (status === "active") return "#10b981";
-  if (status === "maintenance") return "#f59e0b";
-  return "#94a3b8";
-}
-
-function registerMapPinImages(map: maplibregl.Map): Promise<void[]> {
-  const tasks: Promise<void>[] = [];
-
-  for (const type of PIN_TYPES) {
-    for (const status of PIN_STATUSES) {
-      const imgId = `pin-${type}-${status}`;
-      if (map.hasImage(imgId)) continue;
-
-      const p = new Promise<void>((resolve) => {
-        const iconSvg = getCategoryIconSvg(type, 28);
-        const statusColor = getStatusColorHex(status);
-
-        const svgMarkup = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="96" height="120" viewBox="0 0 96 120">
-            <defs>
-              <filter id="sh-${type}-${status}" x="-25%" y="-25%" width="150%" height="150%">
-                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#00441b" flood-opacity="0.35"/>
-              </filter>
-              <linearGradient id="gr-${type}-${status}" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#006d2c"/>
-                <stop offset="100%" stop-color="#238b45"/>
-              </linearGradient>
-            </defs>
-            <g filter="url(#sh-${type}-${status})">
-              <path d="M 48 104 C 32 82, 12 62, 12 40 A 36 36 0 1 1 84 40 C 84 62, 64 82, 48 104 Z" 
-                    fill="url(#gr-${type}-${status})" 
-                    stroke="#ffffff" 
-                    stroke-width="5" 
-                    stroke-linejoin="round"/>
-              <circle cx="48" cy="40" r="27" fill="#f7fcf5" stroke="#c7e9c0" stroke-width="2.5"/>
-            </g>
-            <g transform="translate(34, 26)">
-              ${iconSvg}
-            </g>
-            <circle cx="73" cy="15" r="10" fill="${statusColor}" stroke="#ffffff" stroke-width="4"/>
-          </svg>
-        `;
-
-        const img = new Image();
-        img.onload = () => {
-          if (!map.hasImage(imgId)) {
-            map.addImage(imgId, img, { pixelRatio: 2 });
-          }
-          resolve();
-        };
-        img.onerror = () => resolve();
-        img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup.trim())}`;
-      });
-
-      tasks.push(p);
-    }
-  }
-
-  return Promise.all(tasks);
-}
-
-function createPinpointElement(
-  entity: Entity,
-  isSelected: boolean,
-  onClick: () => void
-): HTMLDivElement {
-  const container = document.createElement("div");
-  container.className = "flex flex-col items-center cursor-pointer group select-none";
-  container.style.transform = isSelected ? "scale(1.15)" : "scale(1)";
-  container.style.transition = "transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)";
-  container.style.zIndex = isSelected ? "40" : "10";
-
-  const iconSvg = getCategoryIconSvg(entity.type);
-  const statusBg = getStatusBadgeClass(entity.status);
-
-  container.innerHTML = `
-    <div class="relative flex flex-col items-center">
-      ${
-        isSelected
-          ? `<div class="absolute -inset-2 rounded-full bg-[#41ab5d] opacity-50 animate-ping pointer-events-none"></div>`
-          : ""
-      }
-      
-      <!-- Pin Teardrop Head -->
-      <div class="relative w-9 h-9 rounded-full bg-gradient-to-br from-[#006d2c] to-[#238b45] p-0.5 shadow-md shadow-[#00441b]/35 border-2 border-white flex items-center justify-center group-hover:scale-105 transition-transform">
-        <!-- Inner Core Disc -->
-        <div class="w-full h-full rounded-full bg-[#f7fcf5] border border-[#c7e9c0] flex items-center justify-center shadow-inner">
-          ${iconSvg}
-        </div>
-
-        <!-- Status Dot Bead on top-right -->
-        <span class="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full ${statusBg} border-2 border-white shadow-xs"></span>
-      </div>
-
-      <!-- Pointer Needle Tip -->
-      <div class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[7px] border-t-[#238b45] -mt-0.5"></div>
-
-      <!-- Ground Contact Shadow -->
-      <div class="w-3.5 h-1 bg-[#00441b]/35 rounded-full blur-[0.5px] mt-0.5"></div>
-    </div>
-
-    <!-- Name Label Badge underneath -->
-    <div class="mt-1 px-2 py-0.5 rounded-md bg-white/95 text-[#00441b] text-[10px] font-semibold tracking-tight shadow-sm border border-[#c7e9c0] max-w-[130px] truncate leading-tight group-hover:border-[#238b45] group-hover:shadow-md transition-all">
-      ${entity.name}
-    </div>
-  `;
-
-  container.addEventListener("click", (e) => {
-    e.stopPropagation();
-    onClick();
-  });
-
-  return container;
-}
 
 const buildGeoJSON = (
   entityList: Entity[],
@@ -493,6 +337,13 @@ export const MapView: React.FC<MapViewProps> = ({
   const markersMapRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<MapViewMode>("pinpoints");
+
+  const viewModeRef = useRef(viewMode);
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+  }, [viewMode]);
+
+  const syncClusterMarkersRef = useRef<(() => void) | null>(null);
 
   const entitiesRef = useRef(entities);
   useEffect(() => {
@@ -542,10 +393,7 @@ export const MapView: React.FC<MapViewProps> = ({
       "top-right"
     );
 
-    const onStyleReady = async () => {
-      // Register custom retina pin images for all types & statuses
-      await registerMapPinImages(map);
-
+    const onStyleReady = () => {
       // Synchronize initial data into both sources
       const geojson = buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current);
       const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
@@ -565,6 +413,88 @@ export const MapView: React.FC<MapViewProps> = ({
       map.on("style.load", onStyleReady);
       map.on("load", onStyleReady);
     }
+
+    // Synchronize unclustered DOM markers in clusters mode
+    const syncClusterMarkers = () => {
+      if (viewModeRef.current !== "clusters") return;
+      const m = mapRef.current;
+      if (!m) return;
+
+      const unclusteredIds = new Set<string>();
+
+      try {
+        const srcFeatures = m.querySourceFeatures(CLUSTER_SOURCE_ID, {
+          filter: ["!=", "cluster", true],
+        });
+        for (const f of srcFeatures) {
+          if (f.properties?.id) unclusteredIds.add(f.properties.id as string);
+        }
+      } catch {
+        // source may not be loaded yet
+      }
+
+      try {
+        const renderedFeatures = m.queryRenderedFeatures({
+          layers: [LAYER_UNCLUSTERED_PINS],
+        });
+        for (const f of renderedFeatures) {
+          if (f.properties?.id) unclusteredIds.add(f.properties.id as string);
+        }
+      } catch {
+        // layer may not be loaded yet
+      }
+
+      const currentMarkers = markersMapRef.current;
+
+      // Remove markers that are no longer unclustered
+      for (const [id, marker] of currentMarkers.entries()) {
+        if (!unclusteredIds.has(id)) {
+          marker.remove();
+          currentMarkers.delete(id);
+        }
+      }
+
+      // Add or update markers for unclustered entities
+      entitiesRef.current.forEach((entity) => {
+        if (!unclusteredIds.has(entity.id)) return;
+
+        const isSelected = entity.id === selectedEntityIdRef.current;
+
+        if (currentMarkers.has(entity.id)) {
+          currentMarkers.get(entity.id)!.remove();
+        }
+
+        const el = createPinpointElement(entity, isSelected, () => {
+          if (isPickingLocationRef.current && onMapClickCoordinatesRef.current) {
+            onMapClickCoordinatesRef.current(entity.latitude, entity.longitude);
+            return;
+          }
+          onSelectEntityRef.current(entity.id);
+        });
+
+        const marker = new maplibregl.Marker({
+          element: el,
+          anchor: "bottom",
+        })
+          .setLngLat([entity.longitude, entity.latitude])
+          .addTo(m);
+
+        currentMarkers.set(entity.id, marker);
+      });
+    };
+
+    syncClusterMarkersRef.current = syncClusterMarkers;
+
+    map.on("move", syncClusterMarkers);
+    map.on("moveend", syncClusterMarkers);
+    map.on("zoom", syncClusterMarkers);
+    map.on("zoomend", syncClusterMarkers);
+    map.on("idle", syncClusterMarkers);
+    map.on("sourcedata", (e: maplibregl.MapSourceDataEvent) => {
+      if (e.sourceId === CLUSTER_SOURCE_ID && e.isSourceLoaded) {
+        syncClusterMarkers();
+      }
+    });
 
     // Cluster Expansion Click (supports clicking on any part of the cluster)
     const clusterLayers = [
@@ -598,21 +528,6 @@ export const MapView: React.FC<MapViewProps> = ({
       );
     });
 
-    // Unclustered Point Click (select entity in clusters mode)
-    map.on(
-      "click",
-      LAYER_UNCLUSTERED_PINS,
-      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-        if (isPickingLocationRef.current) return;
-        if (e.features && e.features.length > 0) {
-          const id = e.features[0].properties?.id;
-          if (id) {
-            onSelectEntityRef.current(id);
-          }
-        }
-      }
-    );
-
     // Heatmap Point Click (select entity in heatmap mode)
     const heatmapInteractiveLayers = [LAYER_HEATMAP_POINTS, LAYER_HEATMAP_HALO];
     heatmapInteractiveLayers.forEach((layerId) => {
@@ -636,7 +551,6 @@ export const MapView: React.FC<MapViewProps> = ({
       LAYER_CLUSTER_CIRCLES,
       LAYER_CLUSTER_OUTER_RING,
       LAYER_CLUSTER_PULSE,
-      LAYER_UNCLUSTERED_PINS,
       LAYER_HEATMAP_POINTS,
       LAYER_HEATMAP_HALO,
     ];
@@ -781,17 +695,21 @@ export const MapView: React.FC<MapViewProps> = ({
       setLayerVis(LAYER_CLUSTER_OUTER_RING, true);
       setLayerVis(LAYER_CLUSTER_CIRCLES, true);
       setLayerVis(LAYER_CLUSTER_COUNT, true);
-      setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, true);
+      setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, false);
       setLayerVis(LAYER_UNCLUSTERED_PINS, true);
       setLayerVis(LAYER_HEATMAP, false);
       setLayerVis(LAYER_HEATMAP_HALO, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
-      // Remove DOM pinpoint markers in cluster mode
-      for (const marker of markersMapRef.current.values()) {
-        marker.remove();
-      }
-      markersMapRef.current.clear();
+      // Synchronize unclustered DOM markers using reusable createPinpointElement
+      syncClusterMarkersRef.current?.();
+      const t1 = setTimeout(() => syncClusterMarkersRef.current?.(), 50);
+      const t2 = setTimeout(() => syncClusterMarkersRef.current?.(), 200);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     } else if (viewMode === "heatmap") {
       const geojsonData = buildGeoJSON(entities, selectedEntityId);
       const rawSource = map.getSource(RAW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
