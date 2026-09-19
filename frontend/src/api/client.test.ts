@@ -14,6 +14,10 @@ describe("mapRawToEntity", () => {
       longitude: 106.8272,
       created_at: "2026-09-19T10:00:00Z",
       updated_at: "2026-09-19T10:30:00Z",
+      attributes: {
+        battery_pct: 95,
+        firmware: "v1.2.0",
+      },
     };
 
     const entity = mapRawToEntity(raw);
@@ -27,5 +31,9 @@ describe("mapRawToEntity", () => {
     expect(entity.longitude).toBe(106.8272);
     expect(entity.createdAt).toBe("2026-09-19T10:00:00Z");
     expect(entity.updatedAt).toBe("2026-09-19T10:30:00Z");
+    expect(entity.attributes).toEqual({
+      battery_pct: 95,
+      firmware: "v1.2.0",
+    });
   });
 });

@@ -33,6 +33,36 @@ describe("Frontend entityInputSchema validation", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects name shorter than 3 characters", () => {
+    const input = {
+      name: "AB",
+      type: "vehicle",
+      status: "active",
+      latitude: 0,
+      longitude: 0,
+    };
+
+    const result = entityInputSchema.safeParse(input);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid attributes map", () => {
+    const input = {
+      name: "Weather Station Node",
+      type: "iot_device",
+      status: "active",
+      attributes: {
+        battery: 95,
+        firmware: "v1.2",
+      },
+      latitude: 0,
+      longitude: 0,
+    };
+
+    const result = entityInputSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
   it("rejects name longer than 100 characters", () => {
     const input = {
       name: "A".repeat(101),

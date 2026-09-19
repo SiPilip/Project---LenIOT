@@ -6,6 +6,7 @@ export interface Entity {
   type: EntityType;
   status: EntityStatus;
   description?: string;
+  attributes?: Record<string, unknown>;
   latitude: number;
   longitude: number;
   createdAt: string;
@@ -20,6 +21,7 @@ export interface ApiRawEntity {
   type: EntityType;
   status: EntityStatus;
   description?: string;
+  attributes?: Record<string, unknown>;
   latitude: number;
   longitude: number;
   created_at: string;
@@ -27,6 +29,7 @@ export interface ApiRawEntity {
 }
 
 export interface ApiResponse<T> {
+  success?: boolean;
   data: T;
 }
 
@@ -36,6 +39,7 @@ export interface ApiErrorDetail {
 }
 
 export interface ApiErrorResponse {
+  success?: boolean;
   error: {
     code: string;
     message: string;

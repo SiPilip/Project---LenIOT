@@ -27,6 +27,7 @@ export function mapRawToEntity(raw: ApiRawEntity): Entity {
     type: raw.type,
     status: raw.status,
     description: raw.description,
+    attributes: raw.attributes || {},
     latitude: raw.latitude,
     longitude: raw.longitude,
     createdAt: raw.created_at,
