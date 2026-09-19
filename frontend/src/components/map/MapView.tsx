@@ -36,10 +36,12 @@ const CLUSTER_SOURCE_ID = "clustered-entities-source";
 const RAW_SOURCE_ID = "raw-entities-source";
 const LAYER_HEATMAP = "entities-heatmap-layer";
 const LAYER_HEATMAP_POINTS = "entities-heatmap-points-layer";
+const LAYER_CLUSTER_PULSE = "entities-cluster-pulse-layer";
+const LAYER_CLUSTER_OUTER_RING = "entities-cluster-outer-ring-layer";
 const LAYER_CLUSTER_CIRCLES = "entities-cluster-circles-layer";
 const LAYER_CLUSTER_COUNT = "entities-cluster-count-layer";
-const LAYER_UNCLUSTERED_POINTS = "entities-unclustered-points-layer";
-const LAYER_UNCLUSTERED_LABELS = "entities-unclustered-labels-layer";
+const LAYER_UNCLUSTERED_SELECTED_HALO = "entities-unclustered-selected-halo";
+const LAYER_UNCLUSTERED_PINS = "entities-unclustered-pins-layer";
 
 const baseMapStyle: maplibregl.StyleSpecification = {
   version: 8,
@@ -139,6 +141,61 @@ const baseMapStyle: maplibregl.StyleSpecification = {
         "circle-opacity": 0.85,
       },
     },
+    // 1. Cluster Outer Translucent Radar Pulse Halo
+    {
+      id: LAYER_CLUSTER_PULSE,
+      type: "circle",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": "rgba(65, 171, 93, 0.22)",
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          32,
+          10,
+          38,
+          50,
+          46,
+        ],
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "rgba(35, 139, 69, 0.4)",
+        "circle-opacity": 0.9,
+      },
+    },
+    // 2. Cluster Intermediate Crisp White Relief Ring
+    {
+      id: LAYER_CLUSTER_OUTER_RING,
+      type: "circle",
+      source: CLUSTER_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": "#ffffff",
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          23,
+          10,
+          28,
+          50,
+          34,
+        ],
+        "circle-stroke-width": 2,
+        "circle-stroke-color": [
+          "step",
+          ["get", "point_count"],
+          "#c7e9c0", // brand-200
+          10,
+          "#a1d99b", // brand-300
+          50,
+          "#74c476", // brand-400
+        ],
+        "circle-opacity": 0.98,
+      },
+    },
+    // 3. Cluster Deep Brand Green Core Disc
     {
       id: LAYER_CLUSTER_CIRCLES,
       type: "circle",
@@ -149,34 +206,27 @@ const baseMapStyle: maplibregl.StyleSpecification = {
         "circle-color": [
           "step",
           ["get", "point_count"],
-          "#41ab5d", // < 10 points: brand-500
+          "#238b45", // < 10 points: vibrant lush emerald
           10,
-          "#238b45", // 10 - 50 points: brand-600
+          "#006d2c", // 10 - 50 points: deep brand forest
           50,
-          "#00441b", // > 50 points: brand-900
+          "#00441b", // > 50 points: midnight green
         ],
         "circle-radius": [
           "step",
           ["get", "point_count"],
+          18,
+          10,
           22,
-          10,
-          28,
           50,
-          34,
+          27,
         ],
-        "circle-stroke-width": 4,
-        "circle-stroke-color": [
-          "step",
-          ["get", "point_count"],
-          "#c7e9c0", // brand-200
-          10,
-          "#a1d99b", // brand-300
-          50,
-          "#74c476", // brand-400
-        ],
-        "circle-opacity": 0.95,
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+        "circle-opacity": 1,
       },
     },
+    // 4. Cluster Count Number (Bold, Crisp White)
     {
       id: LAYER_CLUSTER_COUNT,
       type: "symbol",
@@ -190,69 +240,145 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       },
       paint: {
         "text-color": "#ffffff",
+        "text-halo-color": "rgba(0, 68, 27, 0.75)",
+        "text-halo-width": 0.75,
       },
     },
+    // 5. Unclustered Selected Halo (highlights active selection)
     {
-      id: LAYER_UNCLUSTERED_POINTS,
+      id: LAYER_UNCLUSTERED_SELECTED_HALO,
       type: "circle",
       source: CLUSTER_SOURCE_ID,
-      filter: ["!", ["has", "point_count"]],
+      filter: [
+        "all",
+        ["!", ["has", "point_count"]],
+        ["==", ["get", "isSelected"], true],
+      ],
       layout: { visibility: "none" },
       paint: {
-        "circle-color": "#006d2c",
-        "circle-radius": 10,
-        "circle-stroke-width": 3,
-        "circle-stroke-color": [
-          "match",
-          ["get", "status"],
-          "active",
-          "#41ab5d",
-          "maintenance",
-          "#f59e0b",
-          "#94a3b8",
-        ],
+        "circle-radius": 24,
+        "circle-color": "rgba(65, 171, 93, 0.3)",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#238b45",
       },
     },
+    // 6. Unclustered Retina Pins with Category Icons, Status Dot & Labels
     {
-      id: LAYER_UNCLUSTERED_LABELS,
+      id: LAYER_UNCLUSTERED_PINS,
       type: "symbol",
       source: CLUSTER_SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       layout: {
         visibility: "none",
+        "icon-image": [
+          "concat",
+          "pin-",
+          ["get", "type"],
+          "-",
+          ["get", "status"],
+        ],
+        "icon-size": 0.85,
+        "icon-anchor": "bottom",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
         "text-field": ["get", "name"],
         "text-size": 11,
-        "text-offset": [0, 1.4],
+        "text-offset": [0, 0.35],
         "text-anchor": "top",
-        "text-font": ["Noto Sans Regular"],
+        "text-font": ["Noto Sans Bold"],
         "text-optional": true,
       },
       paint: {
         "text-color": "#00441b",
         "text-halo-color": "#ffffff",
-        "text-halo-width": 2,
+        "text-halo-width": 3,
       },
     },
   ],
 };
 
+const PIN_TYPES = ["vehicle", "iot_device", "facility", "other"] as const;
+const PIN_STATUSES = ["active", "maintenance", "inactive"] as const;
+
 function getCategoryIconSvg(type: string): string {
   if (type === "vehicle") {
-    return renderToStaticMarkup(<FaTruck className="w-3.5 h-3.5 text-[#00441b]" />);
+    return renderToStaticMarkup(<FaTruck size={14} color="#00441b" />);
   }
   if (type === "iot_device") {
-    return renderToStaticMarkup(<FaWifi className="w-3.5 h-3.5 text-[#00441b]" />);
+    return renderToStaticMarkup(<FaWifi size={14} color="#00441b" />);
   }
   if (type === "facility") {
-    return renderToStaticMarkup(<FaWarehouse className="w-3.5 h-3.5 text-[#00441b]" />);
+    return renderToStaticMarkup(<FaWarehouse size={14} color="#00441b" />);
   }
-  return renderToStaticMarkup(<FaLocationDot className="w-3.5 h-3.5 text-[#00441b]" />);
+  return renderToStaticMarkup(<FaLocationDot size={14} color="#00441b" />);
 }
 
 function getStatusBadgeClass(status: string): string {
   if (status === "active") return "bg-emerald-500";
   if (status === "maintenance") return "bg-amber-500";
   return "bg-slate-400";
+}
+
+function getStatusColorHex(status: string): string {
+  if (status === "active") return "#10b981";
+  if (status === "maintenance") return "#f59e0b";
+  return "#94a3b8";
+}
+
+function registerMapPinImages(map: maplibregl.Map): Promise<void[]> {
+  const tasks: Promise<void>[] = [];
+
+  for (const type of PIN_TYPES) {
+    for (const status of PIN_STATUSES) {
+      const imgId = `pin-${type}-${status}`;
+      if (map.hasImage(imgId)) continue;
+
+      const p = new Promise<void>((resolve) => {
+        const iconSvg = getCategoryIconSvg(type);
+        const statusColor = getStatusColorHex(status);
+
+        const svgMarkup = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+            <defs>
+              <filter id="sh-${type}-${status}" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="2.5" stdDeviation="2" flood-color="#00441b" flood-opacity="0.32"/>
+              </filter>
+              <linearGradient id="gr-${type}-${status}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#006d2c"/>
+                <stop offset="100%" stop-color="#238b45"/>
+              </linearGradient>
+            </defs>
+            <g filter="url(#sh-${type}-${status})">
+              <path d="M 20 46 C 13 36, 4 28, 4 18 A 16 16 0 1 1 36 18 C 36 28, 27 36, 20 46 Z" 
+                    fill="url(#gr-${type}-${status})" 
+                    stroke="#ffffff" 
+                    stroke-width="2.5" 
+                    stroke-linejoin="round"/>
+              <circle cx="20" cy="18" r="11.5" fill="#f7fcf5" stroke="#c7e9c0" stroke-width="1.2"/>
+            </g>
+            <g transform="translate(13, 11)">
+              ${iconSvg}
+            </g>
+            <circle cx="31" cy="7" r="4.5" fill="${statusColor}" stroke="#ffffff" stroke-width="1.8"/>
+          </svg>
+        `;
+
+        const img = new Image();
+        img.onload = () => {
+          if (!map.hasImage(imgId)) {
+            map.addImage(imgId, img, { pixelRatio: 2 });
+          }
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup.trim())}`;
+      });
+
+      tasks.push(p);
+    }
+  }
+
+  return Promise.all(tasks);
 }
 
 function createPinpointElement(
@@ -396,7 +522,10 @@ export const MapView: React.FC<MapViewProps> = ({
       "top-right"
     );
 
-    const onStyleReady = () => {
+    const onStyleReady = async () => {
+      // Register custom retina pin images for all types & statuses
+      await registerMapPinImages(map);
+
       // Synchronize initial data into both sources
       const geojson = buildGeoJSON(entitiesRef.current, selectedEntityIdRef.current);
       const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
@@ -417,35 +546,42 @@ export const MapView: React.FC<MapViewProps> = ({
       map.on("load", onStyleReady);
     }
 
-    // Cluster Expansion Click
-    map.on(
-      "click",
+    // Cluster Expansion Click (supports clicking on any part of the cluster)
+    const clusterLayers = [
       LAYER_CLUSTER_CIRCLES,
-      (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-        if (!e.features || !e.features.length) return;
-        const clusterId = e.features[0].properties?.cluster_id;
-        if (clusterId == null) return;
+      LAYER_CLUSTER_OUTER_RING,
+      LAYER_CLUSTER_PULSE,
+    ];
+    clusterLayers.forEach((layerId) => {
+      map.on(
+        "click",
+        layerId,
+        (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+          if (!e.features || !e.features.length) return;
+          const clusterId = e.features[0].properties?.cluster_id;
+          if (clusterId == null) return;
 
-        const source = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource;
-        source
-          .getClusterExpansionZoom(clusterId)
-          .then((zoom) => {
-            if (zoom == null) return;
-            const geom = e.features![0].geometry as Point;
-            map.easeTo({
-              center: geom.coordinates as [number, number],
-              zoom: zoom + 0.5,
-              duration: 500,
-            });
-          })
-          .catch(() => {});
-      }
-    );
+          const source = map.getSource(CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource;
+          source
+            .getClusterExpansionZoom(clusterId)
+            .then((zoom) => {
+              if (zoom == null) return;
+              const geom = e.features![0].geometry as Point;
+              map.easeTo({
+                center: geom.coordinates as [number, number],
+                zoom: zoom + 0.6,
+                duration: 500,
+              });
+            })
+            .catch(() => {});
+        }
+      );
+    });
 
     // Unclustered Point Click (select entity in clusters mode)
     map.on(
       "click",
-      LAYER_UNCLUSTERED_POINTS,
+      LAYER_UNCLUSTERED_PINS,
       (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
         if (isPickingLocationRef.current) return;
         if (e.features && e.features.length > 0) {
@@ -475,7 +611,9 @@ export const MapView: React.FC<MapViewProps> = ({
     // Cursors on interactive layers
     const interactiveLayers = [
       LAYER_CLUSTER_CIRCLES,
-      LAYER_UNCLUSTERED_POINTS,
+      LAYER_CLUSTER_OUTER_RING,
+      LAYER_CLUSTER_PULSE,
+      LAYER_UNCLUSTERED_PINS,
       LAYER_HEATMAP_POINTS,
     ];
     interactiveLayers.forEach((layerId) => {
@@ -562,10 +700,12 @@ export const MapView: React.FC<MapViewProps> = ({
     };
 
     if (viewMode === "pinpoints") {
+      setLayerVis(LAYER_CLUSTER_PULSE, false);
+      setLayerVis(LAYER_CLUSTER_OUTER_RING, false);
       setLayerVis(LAYER_CLUSTER_CIRCLES, false);
       setLayerVis(LAYER_CLUSTER_COUNT, false);
-      setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
-      setLayerVis(LAYER_UNCLUSTERED_LABELS, false);
+      setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, false);
+      setLayerVis(LAYER_UNCLUSTERED_PINS, false);
       setLayerVis(LAYER_HEATMAP, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
@@ -612,10 +752,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }
 
       // Enable cluster layers
+      setLayerVis(LAYER_CLUSTER_PULSE, true);
+      setLayerVis(LAYER_CLUSTER_OUTER_RING, true);
       setLayerVis(LAYER_CLUSTER_CIRCLES, true);
       setLayerVis(LAYER_CLUSTER_COUNT, true);
-      setLayerVis(LAYER_UNCLUSTERED_POINTS, true);
-      setLayerVis(LAYER_UNCLUSTERED_LABELS, true);
+      setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, true);
+      setLayerVis(LAYER_UNCLUSTERED_PINS, true);
       setLayerVis(LAYER_HEATMAP, false);
       setLayerVis(LAYER_HEATMAP_POINTS, false);
 
@@ -632,10 +774,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }
 
       // Enable heatmap layers
+      setLayerVis(LAYER_CLUSTER_PULSE, false);
+      setLayerVis(LAYER_CLUSTER_OUTER_RING, false);
       setLayerVis(LAYER_CLUSTER_CIRCLES, false);
       setLayerVis(LAYER_CLUSTER_COUNT, false);
-      setLayerVis(LAYER_UNCLUSTERED_POINTS, false);
-      setLayerVis(LAYER_UNCLUSTERED_LABELS, false);
+      setLayerVis(LAYER_UNCLUSTERED_SELECTED_HALO, false);
+      setLayerVis(LAYER_UNCLUSTERED_PINS, false);
       setLayerVis(LAYER_HEATMAP, true);
       setLayerVis(LAYER_HEATMAP_POINTS, true);
 
