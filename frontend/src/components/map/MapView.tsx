@@ -82,19 +82,19 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       source: RAW_SOURCE_ID,
       layout: { visibility: "none" },
       paint: {
-        "heatmap-weight": 1.2,
+        "heatmap-weight": 1.0,
         "heatmap-intensity": [
           "interpolate",
           ["linear"],
           ["zoom"],
           0,
-          1.0,
+          0.6,
           8,
-          1.8,
-          12,
-          2.6,
-          15,
-          3.5,
+          0.8,
+          11,
+          1.0,
+          14,
+          1.3,
         ],
         "heatmap-color": [
           "interpolate",
@@ -102,35 +102,35 @@ const baseMapStyle: maplibregl.StyleSpecification = {
           ["heatmap-density"],
           0,
           "rgba(247, 252, 245, 0)",
-          0.08,
-          "rgba(199, 233, 192, 0.45)", // brand-200 soft mint spread
-          0.2,
-          "rgba(161, 217, 155, 0.65)", // brand-300 fresh green
-          0.38,
-          "rgba(116, 196, 118, 0.8)", // brand-400 vivid green
-          0.58,
-          "rgba(65, 171, 93, 0.9)", // brand-500 rich emerald
-          0.78,
-          "rgba(35, 139, 69, 0.95)", // brand-600 deep forest
+          0.1,
+          "rgba(199, 233, 192, 0.4)", // brand-200 soft mint (Low Density)
+          0.3,
+          "rgba(161, 217, 155, 0.6)", // brand-300 fresh green
+          0.5,
+          "rgba(116, 196, 118, 0.72)", // brand-400 vivid meadow
+          0.7,
+          "rgba(65, 171, 93, 0.82)", // brand-500 rich emerald (Mid Density)
+          0.85,
+          "rgba(35, 139, 69, 0.88)", // brand-600 deep forest
           1,
-          "rgba(0, 68, 27, 0.98)", // brand-900 bold rich green
+          "rgba(0, 109, 44, 0.92)", // brand-700 deep brand green (High Density)
         ],
         "heatmap-radius": [
           "interpolate",
           ["linear"],
           ["zoom"],
           0,
-          22,
+          14,
           6,
-          38,
-          10,
-          65,
-          13,
-          95,
-          16,
-          135,
+          20,
+          9,
+          28,
+          12,
+          40,
+          15,
+          56,
         ],
-        "heatmap-opacity": 0.85,
+        "heatmap-opacity": 0.75,
       },
     },
     // Heatmap Outer Delicate Beacon Halo
