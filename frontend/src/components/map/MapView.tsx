@@ -276,7 +276,7 @@ const baseMapStyle: maplibregl.StyleSpecification = {
       ],
       layout: { visibility: "none" },
       paint: {
-        "circle-radius": 24,
+        "circle-radius": 28,
         "circle-color": "rgba(65, 171, 93, 0.3)",
         "circle-stroke-width": 2,
         "circle-stroke-color": "#238b45",
@@ -297,13 +297,13 @@ const baseMapStyle: maplibregl.StyleSpecification = {
           "-",
           ["get", "status"],
         ],
-        "icon-size": 0.85,
+        "icon-size": 1.0,
         "icon-anchor": "bottom",
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         "text-field": ["get", "name"],
         "text-size": 11,
-        "text-offset": [0, 0.35],
+        "text-offset": [0, 0.45],
         "text-anchor": "top",
         "text-font": ["Noto Sans Bold"],
         "text-optional": true,
@@ -320,17 +320,17 @@ const baseMapStyle: maplibregl.StyleSpecification = {
 const PIN_TYPES = ["vehicle", "iot_device", "facility", "other"] as const;
 const PIN_STATUSES = ["active", "maintenance", "inactive"] as const;
 
-function getCategoryIconSvg(type: string): string {
+function getCategoryIconSvg(type: string, size = 14): string {
   if (type === "vehicle") {
-    return renderToStaticMarkup(<FaTruck size={14} color="#00441b" />);
+    return renderToStaticMarkup(<FaTruck size={size} color="#00441b" />);
   }
   if (type === "iot_device") {
-    return renderToStaticMarkup(<FaWifi size={14} color="#00441b" />);
+    return renderToStaticMarkup(<FaWifi size={size} color="#00441b" />);
   }
   if (type === "facility") {
-    return renderToStaticMarkup(<FaWarehouse size={14} color="#00441b" />);
+    return renderToStaticMarkup(<FaWarehouse size={size} color="#00441b" />);
   }
-  return renderToStaticMarkup(<FaLocationDot size={14} color="#00441b" />);
+  return renderToStaticMarkup(<FaLocationDot size={size} color="#00441b" />);
 }
 
 function getStatusBadgeClass(status: string): string {
@@ -354,14 +354,14 @@ function registerMapPinImages(map: maplibregl.Map): Promise<void[]> {
       if (map.hasImage(imgId)) continue;
 
       const p = new Promise<void>((resolve) => {
-        const iconSvg = getCategoryIconSvg(type);
+        const iconSvg = getCategoryIconSvg(type, 28);
         const statusColor = getStatusColorHex(status);
 
         const svgMarkup = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+          <svg xmlns="http://www.w3.org/2000/svg" width="96" height="120" viewBox="0 0 96 120">
             <defs>
-              <filter id="sh-${type}-${status}" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="2.5" stdDeviation="2" flood-color="#00441b" flood-opacity="0.32"/>
+              <filter id="sh-${type}-${status}" x="-25%" y="-25%" width="150%" height="150%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#00441b" flood-opacity="0.35"/>
               </filter>
               <linearGradient id="gr-${type}-${status}" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#006d2c"/>
@@ -369,17 +369,17 @@ function registerMapPinImages(map: maplibregl.Map): Promise<void[]> {
               </linearGradient>
             </defs>
             <g filter="url(#sh-${type}-${status})">
-              <path d="M 20 46 C 13 36, 4 28, 4 18 A 16 16 0 1 1 36 18 C 36 28, 27 36, 20 46 Z" 
+              <path d="M 48 104 C 32 82, 12 62, 12 40 A 36 36 0 1 1 84 40 C 84 62, 64 82, 48 104 Z" 
                     fill="url(#gr-${type}-${status})" 
                     stroke="#ffffff" 
-                    stroke-width="2.5" 
+                    stroke-width="5" 
                     stroke-linejoin="round"/>
-              <circle cx="20" cy="18" r="11.5" fill="#f7fcf5" stroke="#c7e9c0" stroke-width="1.2"/>
+              <circle cx="48" cy="40" r="27" fill="#f7fcf5" stroke="#c7e9c0" stroke-width="2.5"/>
             </g>
-            <g transform="translate(13, 11)">
+            <g transform="translate(34, 26)">
               ${iconSvg}
             </g>
-            <circle cx="31" cy="7" r="4.5" fill="${statusColor}" stroke="#ffffff" stroke-width="1.8"/>
+            <circle cx="73" cy="15" r="10" fill="${statusColor}" stroke="#ffffff" stroke-width="4"/>
           </svg>
         `;
 
